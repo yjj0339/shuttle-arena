@@ -89,19 +89,22 @@
     setTimeout(function () { boot.style.display = 'none'; }, 420);
   }
 
-  frame.addEventListener('load', function () {
-    setTimeout(ready, 320);
+  window.addEventListener('message', function (ev) {
+    if (ev && ev.data && ev.data.type === 'shuttle-ready') ready();
   });
 
-  setTimeout(function () {
-    if (!done) ready();
-  }, 6000);
+  frame.addEventListener('load', function () {
+    setTimeout(function () { if (!done) ready(); }, 900);
+  });
+
+  setTimeout(function () { if (!done) ready(); }, 7000);
 
   setTimeout(function () {
     if (!done) {
       fallback.style.display = 'grid';
+      boot.style.display = 'none';
     }
-  }, 12000);
+  }, 14000);
 })();
 </script>
 </body>

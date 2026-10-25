@@ -280,10 +280,10 @@ export class Renderer {
     floorG.addColorStop(1, '#0d1d26');
     this.poly(g, [farL, farR, nearR, nearL], floorG);
 
-    const apronG = g.createLinearGradient(0, farL.y, 0, nearL.y);
+    const apronG = g.createLinearGradient(0, p(0, -HW - 0.9).y, 0, p(0, HW + 0.9).y);
     apronG.addColorStop(0, '#0c2624');
-    apronG.addColorStop(0.5, '#0f3833');
-    apronG.addColorStop(1, '#12453d');
+    apronG.addColorStop(0.55, '#0f3631');
+    apronG.addColorStop(1, '#123f39');
     this.poly(g, [p(-ohl, -HW - 0.95), p(ohl, -HW - 0.95), p(ohl, HW + 0.95), p(-ohl, HW + 0.95)], apronG);
 
     const courtG = g.createLinearGradient(0, p(0, -HW).y, 0, p(0, HW).y);
@@ -318,13 +318,18 @@ export class Renderer {
     line(COURT.SHORT_SERVICE, -HW, COURT.SHORT_SERVICE, HW, false);
     line(-COURT.SHORT_SERVICE, 0, COURT.SHORT_SERVICE, 0, false);
 
-    const pool = g.createRadialGradient(this.cx, p(0, 0.4).y, 0, this.cx, p(0, 0.4).y, this.W * 0.42);
-    pool.addColorStop(0, 'rgba(150, 255, 240, 0.055)');
+    const poolC = p(0, 0.5);
+    const poolR = this.W * 0.34;
+    const pool = g.createRadialGradient(poolC.x, poolC.y, 0, poolC.x, poolC.y, poolR);
+    pool.addColorStop(0, 'rgba(150, 255, 240, 0.05)');
+    pool.addColorStop(0.6, 'rgba(150, 255, 240, 0.014)');
     pool.addColorStop(1, 'rgba(150, 255, 240, 0)');
     g.save();
     g.globalCompositeOperation = 'lighter';
+    g.beginPath();
+    g.ellipse(poolC.x, poolC.y, poolR, poolR * 0.5, 0, 0, Math.PI * 2);
     g.fillStyle = pool;
-    g.fillRect(0, 0, this.W, this.H);
+    g.fill();
     g.restore();
   }
 

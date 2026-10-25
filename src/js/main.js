@@ -562,6 +562,11 @@ document.addEventListener('visibilitychange', () => {
 
 setTimeout(() => {
   ui.hideLoading();
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'shuttle-ready' }, '*');
+    }
+  } catch (e) { /* ignore */ }
   const params = new URLSearchParams(location.search);
   const auto = params.get('auto');
   const demo = params.get('demo');
