@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#080f1a">
+<title>羽 · SHUTTLE ARENA</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hud hidden">
+    <div class="scoreboard">
+      <div class="sb-side sb-left" id="sbLeft">
+        <div class="sb-name" id="nameL">YOU</div>
+        <div class="sb-score" id="scoreL">0</div>
+      </div>
+      <div class="sb-mid">
+        <div class="sb-vs">VS</div>
+        <div class="sb-target">11 分制</div>
+      </div>
+      <div class="sb-side sb-right" id="sbRight">
+        <div class="sb-name" id="nameR">RIVAL</div>
+        <div class="sb-score" id="scoreR">0</div>
+      </div>
+    </div>
+
+    <div class="rally-badge" id="rallyBadge">
+      <span class="rally-num" id="rallyNum">0</span>
+      <span class="rally-txt">连续对拉</span>
+    </div>
+
+    <div class="serve-hint" id="serveHint">按住右侧蓄力 · 松手发球</div>
+
+    <button class="hud-btn" id="quitBtn" aria-label="退出">✕</button>
+
+    <div class="stat-strip">
+      <div class="stat-item"><b id="pingVal">--</b><span>MS</span></div>
+      <div class="stat-item"><b id="fpsVal">--</b><span>FPS</span></div>
+    </div>
+  </div>
+
+  <div id="powerRing" class="power-ring hidden">
+    <svg viewBox="0 0 100 100">
+      <circle class="pr-track" cx="50" cy="50" r="44"></circle>
+      <circle class="pr-fill" id="prFill" cx="50" cy="50" r="44"></circle>
+    </svg>
+    <div class="pr-label" id="prLabel">高远球</div>
+  </div>
+
+  <div id="touchLayer" class="touch-layer hidden">
+    <div id="stickZone" class="stick-zone">
+      <div id="stickBase" class="stick-base">
+        <div class="stick-cross"></div>
+        <div id="stickKnob" class="stick-knob"></div>
+      </div>
+    </div>
+    <div id="swingZone" class="swing-zone">
+      <button id="jumpBtn" class="jump-btn" aria-label="跳跃">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M16 26V10M16 10l-6 6M16 10l6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 27h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+        <span>跳</span>
+      </button>
+      <div class="swing-wrap">
+        <div class="swing-halo" id="swingHalo"></div>
+        <div class="swing-core">
+          <svg viewBox="0 0 48 48" class="swing-icon">
+            <path d="M14 34 L26 22" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+            <ellipse cx="31" cy="17" rx="9" ry="7" transform="rotate(-42 31 17)" fill="none" stroke="currentColor" stroke-width="3"/>
+            <path d="M27 13 L35 21 M29 11 L37 19 M24.5 15.2 L32.5 23.2" stroke="currentColor" stroke-width="1.3" opacity="0.65"/>
+          </svg>
+          <span class="swing-txt">挥拍</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="screenMenu" class="screen">
+    <div class="menu-bg-glow"></div>
+    <div class="menu-inner">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <defs>
+              <linearGradient id="brandG" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#5ef0d4"/>
+                <stop offset="1" stop-color="#37b6ff"/>
+              </linearGradient>
+            </defs>
+            <circle cx="30" cy="34" r="7.2" fill="url(#brandG)"/>
+            <path d="M30 27 L22 9 L38 9 Z" fill="url(#brandG)" opacity="0.35"/>
+            <path d="M24 9 L36 9 L44 26 L36 33 L24 33 L16 26 Z" fill="none" stroke="url(#brandG)" stroke-width="2" opacity="0.9"/>
+            <path d="M20 16 L44 16 M18 22 L46 22" stroke="url(#brandG)" stroke-width="1.3" opacity="0.55"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>SHUTTLE<span>ARENA</span></h1>
+          <p>真实空气动力学 · 双人在线对拉</p>
+        </div>
+      </div>
+
+      <div class="menu-actions">
+        <button class="btn btn-primary" data-act="quick">
+          <span class="btn-ico">⚡</span>
+          <span class="btn-main">快速匹配</span>
+          <span class="btn-sub">和随机对手开打</span>
+        </button>
+        <button class="btn" data-act="create">
+          <span class="btn-ico">◇</span>
+          <span class="btn-main">创建房间</span>
+          <span class="btn-sub">生成房间码邀请好友</span>
+        </button>
+        <button class="btn" data-act="join">
+          <span class="btn-ico">↗</span>
+          <span class="btn-main">加入房间</span>
+          <span class="btn-sub">输入 4 位好友房间码</span>
+        </button>
+        <button class="btn" data-act="solo">
+          <span class="btn-ico">◎</span>
+          <span class="btn-main">单机练习</span>
+          <span class="btn-sub">与 AI 对练找手感</span>
+        </button>
+      </div>
+
+      <div class="menu-foot">
+        <div class="foot-chip">横屏体验最佳</div>
+        <div class="foot-chip">按住蓄力 · 松手击球</div>
+        <div class="foot-chip" id="netState">检测网络…</div>
+      </div>
+    </div>
+    <div class="court-deco"></div>
+  </div>
+
+  <div id="screenRoom" class="screen hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <button class="icon-btn" data-act="back">←</button>
+        <h2>房间已创建</h2>
+        <div class="head-spacer"></div>
+      </div>
+      <p class="panel-sub">把房间码发给好友，对方在「加入房间」输入即可</p>
+      <div class="code-display" id="codeDisplay">
+        <span>–</span><span>–</span><span>–</span><span>–</span>
+      </div>
+      <div class="panel-row">
+        <button class="btn btn-ghost" data-act="copy">复制邀请</button>
+        <button class="btn btn-ghost" data-act="cancel">取消</button>
+      </div>
+      <div class="waiting">
+        <div class="waiting-dots"><i></i><i></i><i></i></div>
+        <span>等待对手加入…</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="screenJoin" class="screen hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <button class="icon-btn" data-act="back">←</button>
+        <h2>加入房间</h2>
+        <div class="head-spacer"></div>
+      </div>
+      <p class="panel-sub">输入 4 位房间码</p>
+      <div class="code-input" id="codeInput">
+        <input type="text" maxlength="1" inputmode="text" autocomplete="off" spellcheck="false">
+        <input type="text" maxlength="1" inputmode="text" autocomplete="off" spellcheck="false">
+        <input type="text" maxlength="1" inputmode="text" autocomplete="off" spellcheck="false">
+        <input type="text" maxlength="1" inputmode="text" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="btn btn-primary btn-wide" data-act="doJoin" disabled id="joinBtn">进入球场</button>
+    </div>
+  </div>
+
+  <div id="screenSolo" class="screen hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <button class="icon-btn" data-act="back">←</button>
+        <h2>单机练习</h2>
+        <div class="head-spacer"></div>
+      </div>
+      <p class="panel-sub">选择 AI 强度</p>
+      <div class="diff-list" id="diffList">
+        <button class="diff" data-diff="easy"><b>轻松</b><span>新手友好</span></button>
+        <button class="diff active" data-diff="normal"><b>普通</b><span>有来有回</span></button>
+        <button class="diff" data-diff="hard"><b>困难</b><span>落点刁钻</span></button>
+        <button class="diff" data-diff="pro"><b>职业</b><span>几乎不失位</span></button>
+      </div>
+      <button class="btn btn-primary btn-wide" data-act="startSolo">开始对练</button>
+    </div>
+  </div>
+
+  <div id="screenOver" class="screen hidden">
+    <div class="result-card">
+      <div class="result-tag" id="resultTag">VICTORY</div>
+      <div class="result-title" id="resultTitle">胜利</div>
+      <div class="result-score" id="resultScore">11 : 7</div>
+      <div class="result-stats" id="resultStats"></div>
+      <div class="panel-row">
+        <button class="btn btn-primary" data-act="again">再来一局</button>
+        <button class="btn btn-ghost" data-act="home">返回主页</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="screenLoading" class="screen">
+    <div class="loader">
+      <div class="loader-ring"></div>
+      <div class="loader-txt" id="loadingTxt">正在连接球场…</div>
+    </div>
+  </div>
+
+  <div id="rotateHint" class="rotate-hint">
+    <div class="rotate-inner">
+      <div class="phone-ico">
+        <svg viewBox="0 0 64 64">
+          <rect x="22" y="8" width="20" height="48" rx="4" fill="none" stroke="currentColor" stroke-width="2.6"/>
+          <circle cx="32" cy="50" r="1.8" fill="currentColor"/>
+        </svg>
+        <div class="rotate-arrow">⟳</div>
+      </div>
+      <h3>请旋转至横屏</h3>
+      <p>球场更适合横向展开</p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

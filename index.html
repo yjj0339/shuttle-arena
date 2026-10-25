@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#080f1a">
+<title>SHUTTLE ARENA · 联机双人羽毛球</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden; background: #05090f;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: #eef5ff;
+  }
+  #frame {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    border: 0; display: block; opacity: 0; transition: opacity 0.45s ease;
+    background: #05090f;
+  }
+  #frame.ready { opacity: 1; }
+  #boot {
+    position: fixed; inset: 0; display: grid; place-items: center;
+    background: radial-gradient(120% 130% at 50% 0%, #12243a 0%, #070e18 62%, #04080e 100%);
+    transition: opacity 0.4s ease; z-index: 10;
+  }
+  #boot.gone { opacity: 0; pointer-events: none; }
+  .boot-inner { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .ring {
+    width: 46px; height: 46px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.09); border-top-color: #5ef0d4;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .boot-title { font-size: 15px; font-weight: 700; letter-spacing: 0.02em; }
+  .boot-sub { font-size: 12px; color: #7d93b3; letter-spacing: 0.04em; }
+  .boot-tip { font-size: 11px; color: #56698a; margin-top: 4px; }
+  #fallback {
+    position: fixed; inset: 0; display: none; place-items: center; padding: 28px;
+    background: #05090f; z-index: 20; text-align: center;
+  }
+  #fallback .box { max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
+  #fallback h1 { font-size: 18px; }
+  #fallback p { font-size: 13px; line-height: 1.7; color: #8da3bf; }
+  #fallback a {
+    display: inline-block; margin-top: 6px; padding: 12px 22px; border-radius: 12px;
+    background: linear-gradient(150deg, #5ef0d4, #4dcaff); color: #04141a;
+    font-weight: 700; text-decoration: none; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+  <iframe id="frame"
+    src="https://shuttle-arena.app.workbuddy.host/?sharecode=PNCFY5M4LU"
+    allow="fullscreen; autoplay; clipboard-write; orientation-lock"
+    allowfullscreen
+    referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+  <div id="boot">
+    <div class="boot-inner">
+      <div class="ring"></div>
+      <div class="boot-title">SHUTTLE ARENA</div>
+      <div class="boot-sub">正在进入球场…</div>
+      <div class="boot-tip">横屏体验最佳 · 需要联网对战</div>
+    </div>
+  </div>
+
+  <div id="fallback">
+    <div class="box">
+      <h1>加载被拦截了</h1>
+      <p>当前浏览器或网络环境不允许内嵌运行。点击下方按钮直接进入游戏。</p>
+      <a href="https://shuttle-arena.app.workbuddy.host/?sharecode=PNCFY5M4LU" target="_blank" rel="noopener">直接打开球场</a>
+    </div>
+  </div>
+
+<script>
+(function () {
+  var frame = document.getElementById('frame');
+  var boot = document.getElementById('boot');
+  var fallback = document.getElementById('fallback');
+  var done = false;
+
+  function ready() {
+    if (done) return;
+    done = true;
+    boot.classList.add('gone');
+    frame.classList.add('ready');
+    setTimeout(function () { boot.style.display = 'none'; }, 420);
+  }
+
+  frame.addEventListener('load', function () {
+    setTimeout(ready, 320);
+  });
+
+  setTimeout(function () {
+    if (!done) ready();
+  }, 6000);
+
+  setTimeout(function () {
+    if (!done) {
+      fallback.style.display = 'grid';
+    }
+  }, 12000);
+})();
+</script>
+</body>
+</html>
