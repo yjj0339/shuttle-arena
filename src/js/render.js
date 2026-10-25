@@ -318,18 +318,27 @@ export class Renderer {
     line(COURT.SHORT_SERVICE, -HW, COURT.SHORT_SERVICE, HW, false);
     line(-COURT.SHORT_SERVICE, 0, COURT.SHORT_SERVICE, 0, false);
 
-    const poolC = p(0, 0.5);
-    const poolR = this.W * 0.34;
-    const pool = g.createRadialGradient(poolC.x, poolC.y, 0, poolC.x, poolC.y, poolR);
-    pool.addColorStop(0, 'rgba(150, 255, 240, 0.05)');
-    pool.addColorStop(0.6, 'rgba(150, 255, 240, 0.014)');
-    pool.addColorStop(1, 'rgba(150, 255, 240, 0)');
+    const poolC = p(0, 0);
+    const poolR = this.W * 0.30;
     g.save();
-    g.globalCompositeOperation = 'lighter';
     g.beginPath();
-    g.ellipse(poolC.x, poolC.y, poolR, poolR * 0.5, 0, 0, Math.PI * 2);
+    const cl0 = p(-HL, -HW);
+    const cl1 = p(HL, -HW);
+    const cl2 = p(HL, HW);
+    const cl3 = p(-HL, HW);
+    g.moveTo(cl0.x, cl0.y);
+    g.lineTo(cl1.x, cl1.y);
+    g.lineTo(cl2.x, cl2.y);
+    g.lineTo(cl3.x, cl3.y);
+    g.closePath();
+    g.clip();
+    const pool = g.createRadialGradient(poolC.x, poolC.y, 0, poolC.x, poolC.y, poolR);
+    pool.addColorStop(0, 'rgba(150, 255, 240, 0.055)');
+    pool.addColorStop(0.65, 'rgba(150, 255, 240, 0.016)');
+    pool.addColorStop(1, 'rgba(150, 255, 240, 0)');
+    g.globalCompositeOperation = 'lighter';
     g.fillStyle = pool;
-    g.fill();
+    g.fillRect(0, 0, this.W, this.H);
     g.restore();
   }
 
