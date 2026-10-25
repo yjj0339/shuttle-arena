@@ -65,11 +65,43 @@ export class GameAudio {
     o.stop(t + dur + 0.02);
   }
 
-  hit(power = 0.6, smash = false) {
+  hit(power = 0.6, kind = 'clear') {
     this.ensure();
     const p = Math.max(0.2, Math.min(1, power));
-    this.noise(0.06, 'bandpass', smash ? 1400 : 2400 + p * 1400, 1.1, 0.42 + p * 0.3, 0.055, smash ? 600 : 900);
-    this.tone(smash ? 130 : 190 + p * 90, 0.075, 0.22 + p * 0.16, 'triangle', smash ? 62 : 95);
+    const heavy = kind === 'smash';
+    const soft = kind === 'net' || kind === 'drop';
+    const quick = kind === 'drive';
+
+    if (heavy) {
+      this.noise(0.1, 'bandpass', 1100, 0.9, 0.75, 0.1, 380);
+      this.tone(150, 0.13, 0.42, 'triangle', 52);
+      this.tone(84, 0.18, 0.3, 'sine', 44);
+      this.noise(0.05, 'highpass', 4200, 0.7, 0.32, 0.05);
+    } else if (soft) {
+      this.noise(0.05, 'bandpass', 3200, 1.6, 0.18, 0.05, 1800);
+      this.tone(420, 0.05, 0.09, 'sine', 260);
+    } else if (quick) {
+      this.noise(0.05, 'bandpass', 2800, 1.2, 0.5, 0.05, 1100);
+      this.tone(260, 0.06, 0.26, 'square', 130);
+    } else {
+      this.noise(0.07, 'bandpass', 2200 + p * 900, 1.1, 0.4 + p * 0.28, 0.07, 900);
+      this.tone(200 + p * 80, 0.09, 0.2 + p * 0.14, 'triangle', 90);
+    }
+  }
+
+  whoosh(speed) {
+    this.ensure();
+    const k = Math.max(0.15, Math.min(1, speed / 40));
+    this.noise(0.16, 'bandpass', 900 + k * 1200, 0.9, 0.05 + k * 0.12, 0.16, 380);
+  }
+
+  cheer(strong) {
+    this.ensure();
+    const n = strong ? 1 : 0.6;
+    this.noise(0.7, 'bandpass', 1400, 0.6, 0.11 * n, 0.75, 700);
+    this.tone(523, 0.3, 0.1 * n, 'sine');
+    setTimeout(() => this.tone(784, 0.36, 0.09 * n, 'sine'), 110);
+    setTimeout(() => this.tone(1046, 0.5, 0.07 * n, 'sine'), 220);
   }
 
   net() {

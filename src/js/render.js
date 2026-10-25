@@ -9,8 +9,8 @@ const THEME = {
   skyFloor: '#c6d5e3',
   crowdBase: 'rgba(206, 219, 232, 0.92)',
   crowdFade: 'rgba(242, 246, 250, 0.92)',
-  apronFar: '#a9bccd',
-  apronNear: '#93a8bc',
+  apronFar: '#9db1c4',
+  apronNear: '#879db2',
   courtFar: '#3d9a63',
   courtMid: '#46a86c',
   courtNear: '#4fb375',
@@ -128,13 +128,13 @@ export class Renderer {
       return { top: Math.min(...ys), bot: Math.max(...ys) };
     };
     let spanY = ySpan();
-    const maxH = h * 0.94;
+    const maxH = h * 0.62;
     if (spanY.bot - spanY.top > maxH) {
       this.focal *= maxH / (spanY.bot - spanY.top);
       this.cx = w / 2 - ((minN + maxN) / 2) * this.focal * this.xScale;
       spanY = ySpan();
     }
-    this.cy = h * 0.52 - (spanY.top + spanY.bot) / 2;
+    this.cy = h * 0.665 - (spanY.top + spanY.bot) / 2;
 
     this.buildBackground();
     this.buildStaticLayer();
@@ -161,8 +161,9 @@ export class Renderer {
     c.width = S; c.height = S;
     const g = c.getContext('2d');
     const grd = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
-    grd.addColorStop(0, 'rgba(' + THEME.shadow + ', 0.5)');
-    grd.addColorStop(0.55, 'rgba(' + THEME.shadow + ', 0.2)');
+    grd.addColorStop(0, 'rgba(' + THEME.shadow + ', 0.62)');
+    grd.addColorStop(0.4, 'rgba(' + THEME.shadow + ', 0.34)');
+    grd.addColorStop(0.72, 'rgba(' + THEME.shadow + ', 0.10)');
     grd.addColorStop(1, 'rgba(' + THEME.shadow + ', 0)');
     g.fillStyle = grd;
     g.fillRect(0, 0, S, S);
@@ -231,9 +232,9 @@ export class Renderer {
     }
 
     g.save();
-    g.filter = `blur(${Math.max(1.2, h * 0.0030).toFixed(2)}px)`;
-    const unit = Math.max(1.7, Math.min(3.4, w / 520));
-    const total = Math.round(w * 0.34);
+    g.filter = `blur(${Math.max(1.0, h * 0.0024).toFixed(2)}px)`;
+    const unit = Math.max(2.4, Math.min(4.6, w / 300));
+    const total = Math.round(w * 0.16);
     for (let i = 0; i < total; i++) {
       const px = rnd() * w;
       const py = seatTop + rnd() * (seatBot - seatTop);
@@ -246,7 +247,7 @@ export class Renderer {
         : tint > 0.78 ? '70, 168, 208'
           : tint > 0.58 ? '96, 132, 188'
             : tint > 0.3 ? '120, 144, 170' : '84, 104, 128';
-      g.fillStyle = `rgba(${col}, ${0.16 + depth * 0.26 + rnd() * 0.1})`;
+      g.fillStyle = `rgba(${col}, ${0.24 + depth * 0.34 + rnd() * 0.12})`;
       rr(g, px, py - bh, bw, bh, bw * 0.45);
       g.fill();
       g.beginPath();
@@ -256,8 +257,8 @@ export class Renderer {
     g.restore();
 
     const fade = g.createLinearGradient(0, seatTop, 0, seatBot);
-    fade.addColorStop(0, 'rgba(243, 248, 252, 0.88)');
-    fade.addColorStop(0.45, 'rgba(243, 248, 252, 0.18)');
+    fade.addColorStop(0, 'rgba(243, 248, 252, 0.72)');
+    fade.addColorStop(0.5, 'rgba(243, 248, 252, 0.06)');
     fade.addColorStop(1, 'rgba(243, 248, 252, 0)');
     g.fillStyle = fade;
     g.fillRect(0, seatTop, w, seatBot - seatTop);
@@ -338,8 +339,8 @@ export class Renderer {
   drawCourt(g) {
     const HW = COURT.HALF_WIDTH;
     const HL = COURT.HALF_LENGTH;
-    const ohw = HW + 0.62;
-    const ohl = HL + 0.62;
+    const ohw = HW + 0.42;
+    const ohl = HL + 0.42;
     const p = (x, z) => this.project(x, 0, z);
 
     const floorG = g.createLinearGradient(0, p(0, -ohw).y, 0, p(0, ohw).y);
@@ -352,16 +353,39 @@ export class Renderer {
     apronG.addColorStop(1, THEME.apronNear);
     this.poly(g, [p(-ohl, -HW - 0.6), p(ohl, -HW - 0.6), p(ohl, HW + 0.6), p(-ohl, HW + 0.6)], apronG);
 
-    const courtG = g.createLinearGradient(0, p(0, -HW).y, 0, p(0, HW).y);
-    courtG.addColorStop(0, THEME.courtFar);
-    courtG.addColorStop(0.5, THEME.courtMid);
-    courtG.addColorStop(1, THEME.courtNear);
+    const thick = Math.max(4, this.project(0, 0, 0).s * 0.075);
+    g.save();
+    g.filter = 'none';
+    g.fillStyle = 'rgba(46, 78, 62, 0.30)';
+    g.beginPath();
+    g.moveTo(p(-HL, -HW).x, p(-HL, -HW).y);
+    g.lineTo(p(HL, -HW).x, p(HL, -HW).y);
+    g.lineTo(p(HL, HW).x, p(HL, HW).y + thick * 1.6);
+    g.lineTo(p(-HL, HW).x, p(-HL, HW).y + thick * 1.6);
+    g.closePath();
+    g.fill();
+    g.fillStyle = 'rgba(58, 96, 76, 0.55)';
+    g.beginPath();
+    g.moveTo(p(-HL, HW).x, p(-HL, HW).y);
+    g.lineTo(p(HL, HW).x, p(HL, HW).y);
+    g.lineTo(p(HL, HW).x, p(HL, HW).y + thick * 1.5);
+    g.lineTo(p(-HL, HW).x, p(-HL, HW).y + thick * 1.5);
+    g.closePath();
+    g.fill();
+    g.restore();
+
+    const courtG = g.createLinearGradient(p(-HL, -HW).x, p(-HL, -HW).y, p(HL, HW).x, p(HL, HW).y);
+    courtG.addColorStop(0, '#4fae74');
+    courtG.addColorStop(0.35, '#48a46b');
+    courtG.addColorStop(0.72, '#3f9660');
+    courtG.addColorStop(1, '#378a56');
     this.poly(g, [p(-HL, -HW), p(HL, -HW), p(HL, HW), p(-HL, HW)], courtG);
 
-    const sheen = g.createLinearGradient(0, p(0, -HW).y, 0, p(0, HW).y);
-    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
-    sheen.addColorStop(0.45, 'rgba(255, 255, 255, 0.06)');
-    sheen.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    const sheen = g.createLinearGradient(p(-HL, -HW).x, p(-HL, -HW).y, p(HL, HW).x, p(HL, HW).y);
+    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.34)');
+    sheen.addColorStop(0.42, 'rgba(255, 255, 255, 0.10)');
+    sheen.addColorStop(0.75, 'rgba(255, 255, 255, 0.02)');
+    sheen.addColorStop(1, 'rgba(12, 52, 34, 0.14)');
     this.poly(g, [p(-HL, -HW), p(HL, -HW), p(HL, HW), p(-HL, HW)], sheen);
 
     g.save();
@@ -538,14 +562,14 @@ export class Renderer {
     const img = this.shadowSprite();
     g.save();
     g.globalAlpha = clamp(alpha * k, 0, 1);
-    g.drawImage(img, p.x - rx, p.y - ry, rx * 2, ry * 2);
+    g.drawImage(img, p.x - rx * 1.25, p.y - ry * 1.35, rx * 2.5, ry * 2.7);
     g.restore();
   }
 
   drawPlayer(g, p, side, isLocal, dt) {
     const base = this.project(p.x, p.y, p.z);
     const foot = this.project(p.x, 0, p.z);
-    const s = base.s * 1.04;
+    const s = base.s * 1.28;
     if (s < 0.4) return;
 
     const dir = side < 0 ? 1 : -1;
@@ -559,7 +583,7 @@ export class Renderer {
     const airborne = p.y > 0.06;
     const H = 1.78 * s;
 
-    this.drawShadow(g, p.x, p.z, 0.52, 1.15, p.y);
+    this.drawShadow(g, p.x, p.z, 0.66, 1.5, p.y);
 
     g.save();
     g.translate(base.x, base.y);
@@ -919,6 +943,25 @@ export class Renderer {
       g.restore();
     }
 
+    if (b.active && spd > 20) {
+      const a = Math.atan2(-b.vy, b.vx);
+      const len = clamp(spd / 40, 0.2, 1) * r * 9;
+      g.save();
+      g.translate(p.x, p.y);
+      g.rotate(a);
+      g.strokeStyle = `rgba(255, 255, 255, ${clamp((spd - 20) / 40, 0, 1) * 0.5})`;
+      g.lineCap = 'round';
+      for (let i = 0; i < 3; i++) {
+        const off = (i - 1) * r * 0.9;
+        g.lineWidth = Math.max(0.8, r * (0.28 - i * 0.05));
+        g.beginPath();
+        g.moveTo(-len * 0.6, off);
+        g.lineTo(-len, off * 1.3);
+        g.stroke();
+      }
+      g.restore();
+    }
+
     const ang = spd > 0.5 ? Math.atan2(-b.vy, b.vx) : -Math.PI / 2;
     const stretch = clamp(spd / 50, 0, 1);
 
@@ -982,14 +1025,40 @@ export class Renderer {
     g.restore();
   }
 
-  spawnHitFx(x, y, z, side, power) {
-    this.fx.push({ type: 'ring', x, y, z, t: 0, life: 0.4, color: side < 0 ? '232, 96, 56' : '30, 140, 208', r1: 0.9 + power * 0.7 });
-    this.fx.push({ type: 'burst', x, y, z, t: 0, life: 0.28, color: side < 0 ? '255, 176, 140' : '150, 214, 248', n: 9, power });
-    if (power > 0.78) this.shake = Math.max(this.shake, 4);
+  spawnHitFx(x, y, z, side, power, kind, dirX, dirY) {
+    const warm = side < 0;
+    const base = warm ? '232, 96, 56' : '30, 140, 208';
+    const bright = warm ? '255, 186, 150' : '160, 220, 250';
+    const heavy = kind === 'smash' || kind === 'smashServe';
+    const quick = kind === 'drive' || kind === 'net';
+
+    this.fx.push({
+      type: 'ring', x, y, z, t: 0, life: heavy ? 0.5 : quick ? 0.26 : 0.36,
+      color: base, r1: (heavy ? 1.5 : quick ? 0.7 : 1.0) + power * 0.6,
+      ax: dirX || 0, ay: dirY || 0,
+    });
+    this.fx.push({
+      type: 'burst', x, y, z, t: 0, life: heavy ? 0.32 : 0.24,
+      color: bright, n: heavy ? 16 : quick ? 6 : 10, power,
+      ax: dirX || 0, ay: dirY || 0,
+    });
+    if (heavy) {
+      this.fx.push({ type: 'rays', x, y, z, t: 0, life: 0.22, color: bright, ax: dirX || 0, ay: dirY || 0 });
+      this.shake = Math.max(this.shake, 8.5);
+      this.flash = Math.max(this.flash, 0.55);
+    } else if (quick) {
+      this.shake = Math.max(this.shake, 2.4);
+      this.flash = Math.max(this.flash, 0.1);
+    } else {
+      this.shake = Math.max(this.shake, 1.6 + power * 2.2);
+      this.flash = Math.max(this.flash, 0.06 + power * 0.1);
+    }
   }
 
   spawnLandFx(x, z, scorer) {
-    this.fx.push({ type: 'land', x, z, t: 0, life: 0.55, color: scorer < 0 ? '232, 96, 56' : '30, 140, 208' });
+    const col = scorer < 0 ? '232, 96, 56' : '30, 140, 208';
+    this.fx.push({ type: 'land', x, z, t: 0, life: 0.6, color: col });
+    this.fx.push({ type: 'dust', x, z, t: 0, life: 0.5, color: '255, 255, 255', n: 10 });
   }
 
   spawnText(text, sub, color) {
@@ -1004,7 +1073,7 @@ export class Renderer {
       if (f.t < f.life) this.fx[w++] = f;
     }
     this.fx.length = w;
-    if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 20);
+    if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 34);
     if (this.flash > 0) this.flash = Math.max(0, this.flash - dt * 3.4);
   }
 
@@ -1015,11 +1084,20 @@ export class Renderer {
         const p = this.project(f.x, f.y, f.z);
         if (f.type === 'ring') {
           const r = lerp(0.16, f.r1, k) * p.s;
+          const ang = Math.atan2(-(f.ay || 0), (f.ax || 0));
           g.save();
-          g.strokeStyle = `rgba(${f.color}, ${(1 - k) * 0.75})`;
-          g.lineWidth = Math.max(1.5, p.s * 0.032 * (1 - k));
+          g.translate(p.x, p.y);
+          g.rotate(ang);
+          const stretch = 1 + Math.min(1.1, Math.hypot(f.ax || 0, f.ay || 0) / 24);
+          g.strokeStyle = `rgba(${f.color}, ${(1 - k) * 0.8})`;
+          g.lineWidth = Math.max(1.8, p.s * 0.036 * (1 - k));
           g.beginPath();
-          g.ellipse(p.x, p.y, r, r * 0.75, 0, 0, Math.PI * 2);
+          g.ellipse(0, 0, r * stretch, r * 0.62, 0, 0, Math.PI * 2);
+          g.stroke();
+          g.strokeStyle = `rgba(255, 255, 255, ${(1 - k) * 0.5})`;
+          g.lineWidth = Math.max(1, p.s * 0.016 * (1 - k));
+          g.beginPath();
+          g.ellipse(0, 0, r * stretch * 1.06, r * 0.66, 0, 0, Math.PI * 2);
           g.stroke();
           g.restore();
         } else {
@@ -1044,6 +1122,38 @@ export class Renderer {
         g.beginPath();
         g.ellipse(p.x, p.y, r, r * 0.34, 0, 0, Math.PI * 2);
         g.stroke();
+        g.restore();
+      } else if (f.type === 'rays') {
+        const p = this.project(f.x, f.y, f.z);
+        const ang = Math.atan2(-(f.ay || 0), (f.ax || 0));
+        g.save();
+        g.translate(p.x, p.y);
+        g.rotate(ang);
+        const len = (0.35 + k * 1.5) * p.s;
+        g.strokeStyle = `rgba(${f.color}, ${(1 - k) * 0.85})`;
+        g.lineCap = 'round';
+        for (let i = 0; i < 7; i++) {
+          const spread = (i - 3) * 0.22;
+          const w = Math.max(1, p.s * 0.018 * (1 - k));
+          g.lineWidth = w * (1 - Math.abs(i - 3) * 0.15);
+          g.beginPath();
+          g.moveTo(Math.cos(spread) * len * 0.35, Math.sin(spread) * len * 0.35);
+          g.lineTo(Math.cos(spread) * len, Math.sin(spread) * len);
+          g.stroke();
+        }
+        g.restore();
+      } else if (f.type === 'dust') {
+        const p = this.project(f.x, 0, f.z);
+        g.save();
+        for (let i = 0; i < f.n; i++) {
+          const a = (i / f.n) * Math.PI * 2;
+          const d = (0.15 + k * 0.9) * p.s;
+          const q = this.project(f.x + Math.cos(a) * (d / p.s) * 0.5, 0.05 + k * 0.25, f.z + Math.sin(a) * (d / p.s) * 0.5);
+          g.fillStyle = `rgba(${f.color}, ${(1 - k) * 0.45})`;
+          g.beginPath();
+          g.arc(q.x, q.y, Math.max(1, q.s * 0.02 * (1 - k * 0.5)), 0, Math.PI * 2);
+          g.fill();
+        }
         g.restore();
       } else if (f.type === 'text') {
         const pop = k < 0.14 ? lerp(0.55, 1, k / 0.14) : 1;

@@ -99,9 +99,16 @@ function handleEvents(evs) {
   for (const ev of evs) {
     if (ev.type === 'hit') {
       const isMe = ev.side === mySide;
-      audio.hit(ev.power, ev.kind === SHOT.SMASH);
+      audio.hit(ev.power, ev.kind);
       if (ev.kind === SHOT.SMASH) state.smashCount++;
-      renderer.spawnHitFx(ev.x, ev.y, ev.z || 0, ev.side, ev.power);
+      const w = state.world;
+      const bb = w.ball;
+      const spd = Math.hypot(bb.vx, bb.vy, bb.vz);
+      renderer.spawnHitFx(ev.x, ev.y, ev.z || 0, ev.side, ev.power, ev.kind, bb.vx, bb.vy);
+      if (spd > 26) audio.whoosh(spd);
+      if (ev.kind === SHOT.SMASH) {
+        renderer.spawnText(isMe ? 'SMASH' : '被扣杀', '', isMe ? '#e8603a' : '#1e8cd0');
+      }
     } else if (ev.type === 'net') {
       audio.net();
     } else if (ev.type === 'land') {
@@ -112,9 +119,16 @@ function handleEvents(evs) {
       const reasons = {
         out: '出界', net: '下网', 'own-court': '未过网', winner: '落地得分', 'no-hit': '未击球',
       };
-      renderer.spawnText(iWin ? '得分' : '失分', reasons[ev.reason] || '', iWin ? '#5ef0d4' : '#ff6f7d');
-      renderer.flash = iWin ? 0.5 : 0.35;
+      const hitter = state.world.players[ev.scorer === -1 ? 0 : 1];
+      const wasSmash = hitter && hitter.lastKind === SHOT.SMASH && ev.reason === 'winner';
+      renderer.spawnText(
+        iWin ? (wasSmash ? '扣杀得分' : '得分') : '失分',
+        reasons[ev.reason] || '',
+        iWin ? '#12996f' : '#d83445'
+      );
+      renderer.flash = iWin ? 0.45 : 0.3;
       audio.point(iWin);
+      if (iWin && wasSmash) audio.cheer(true);
       state.totalRallies++;
     } else if (ev.type === 'gameover') {
       endMatch(ev.winner, ev.score);
