@@ -9,6 +9,10 @@
 <meta name="theme-color" content="#080f1a">
 <title>羽 · SHUTTLE ARENA</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="modulepreload" href="js/shared/physics.js">
+<link rel="modulepreload" href="js/shared/sim.js">
+<link rel="modulepreload" href="js/render.js">
+<link rel="modulepreload" href="js/input.js">
 </head>
 <body>
 <div id="app">
@@ -229,6 +233,8 @@
       <p>球场更适合横向展开</p>
     </div>
   </div>
+
+  <div id="perfHud" class="perf-hud hidden"></div>
 
   <div id="toast" class="toast"></div>
 </div>

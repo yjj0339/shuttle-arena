@@ -69,7 +69,10 @@ export class Renderer {
     const rect = this.canvas.getBoundingClientRect();
     const w = Math.max(320, rect.width || window.innerWidth);
     const h = Math.max(240, rect.height || window.innerHeight);
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const rawDpr = window.devicePixelRatio || 1;
+    const budget = 3.2e6;
+    const maxByBudget = Math.sqrt(budget / Math.max(1, w * h));
+    const dpr = Math.max(1, Math.min(rawDpr, maxByBudget, 2));
     this.dpr = dpr;
     this.W = w;
     this.H = h;
@@ -134,6 +137,37 @@ export class Renderer {
     this.cy = h * 0.52 - (spanY.top + spanY.bot) / 2;
 
     this.buildBackground();
+    this.buildStaticLayer();
+  }
+
+  buildStaticLayer() {
+    const w = this.W, h = this.H;
+    if (!this.staticLayer) this.staticLayer = document.createElement('canvas');
+    const c = this.staticLayer;
+    c.width = Math.round(w * this.dpr);
+    c.height = Math.round(h * this.dpr);
+    const g = c.getContext('2d');
+    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    g.fillStyle = '#e6eef6';
+    g.fillRect(0, 0, w, h);
+    if (this.bg) g.drawImage(this.bg, 0, 0, w, h);
+    this.drawCourt(g);
+  }
+
+  shadowSprite() {
+    if (this._shadow) return this._shadow;
+    const S = 128;
+    const c = document.createElement('canvas');
+    c.width = S; c.height = S;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    grd.addColorStop(0, 'rgba(' + THEME.shadow + ', 0.5)');
+    grd.addColorStop(0.55, 'rgba(' + THEME.shadow + ', 0.2)');
+    grd.addColorStop(1, 'rgba(' + THEME.shadow + ', 0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, S, S);
+    this._shadow = c;
+    return c;
   }
 
   rawProject(x, y, z) {
@@ -501,14 +535,11 @@ export class Renderer {
     const k = clamp(1 - height / 6.5, 0.2, 1);
     const rx = radius * p.s * (1.35 - k * 0.35);
     const ry = rx * 0.34;
-    const grd = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, rx);
-    grd.addColorStop(0, `rgba(${THEME.shadow}, ${0.46 * alpha * k})`);
-    grd.addColorStop(0.6, `rgba(${THEME.shadow}, ${0.2 * alpha * k})`);
-    grd.addColorStop(1, `rgba(${THEME.shadow}, 0)`);
-    g.fillStyle = grd;
-    g.beginPath();
-    g.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
-    g.fill();
+    const img = this.shadowSprite();
+    g.save();
+    g.globalAlpha = clamp(alpha * k, 0, 1);
+    g.drawImage(img, p.x - rx, p.y - ry, rx * 2, ry * 2);
+    g.restore();
   }
 
   drawPlayer(g, p, side, isLocal, dt) {
@@ -624,12 +655,7 @@ export class Renderer {
 
     const torsoTop = shoulderY - H * 0.018;
     const torsoBot = hipY + H * 0.012;
-    const bodyG = g.createLinearGradient(-torsoW * 0.5, 0, torsoW * 0.5, 0);
-    bodyG.addColorStop(0, kit.shirtDark);
-    bodyG.addColorStop(0.34, kit.shirt);
-    bodyG.addColorStop(0.72, kit.shirtLite);
-    bodyG.addColorStop(1, kit.shirtLite);
-    g.fillStyle = bodyG;
+    g.fillStyle = kit.shirt;
     g.beginPath();
     g.moveTo(-torsoW * 0.43, torsoTop + H * 0.018);
     g.quadraticCurveTo(0, torsoTop - H * 0.02, torsoW * 0.43, torsoTop + H * 0.018);
@@ -640,12 +666,21 @@ export class Renderer {
     g.closePath();
     g.fill();
 
-    g.fillStyle = 'rgba(255,255,255,0.22)';
+    g.fillStyle = kit.shirtDark;
     g.beginPath();
-    g.moveTo(dir * torsoW * 0.1, torsoTop + H * 0.02);
+    g.moveTo(-torsoW * 0.46, torsoTop + H * 0.025);
+    g.lineTo(-dir * torsoW * 0.06, torsoTop + H * 0.035);
+    g.lineTo(-dir * torsoW * 0.04, torsoBot - H * 0.02);
+    g.lineTo(-torsoW * 0.46, torsoBot - H * 0.02);
+    g.closePath();
+    g.fill();
+
+    g.fillStyle = 'rgba(255,255,255,0.2)';
+    g.beginPath();
+    g.moveTo(dir * torsoW * 0.12, torsoTop + H * 0.02);
     g.lineTo(dir * torsoW * 0.4, torsoTop + H * 0.03);
     g.lineTo(dir * torsoW * 0.36, torsoBot - H * 0.03);
-    g.lineTo(dir * torsoW * 0.12, torsoBot - H * 0.03);
+    g.lineTo(dir * torsoW * 0.14, torsoBot - H * 0.03);
     g.closePath();
     g.fill();
 
@@ -962,8 +997,13 @@ export class Renderer {
   }
 
   updateFx(dt) {
-    for (const f of this.fx) f.t += dt;
-    this.fx = this.fx.filter((f) => f.t < f.life);
+    let w = 0;
+    for (let i = 0; i < this.fx.length; i++) {
+      const f = this.fx[i];
+      f.t += dt;
+      if (f.t < f.life) this.fx[w++] = f;
+    }
+    this.fx.length = w;
     if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 20);
     if (this.flash > 0) this.flash = Math.max(0, this.flash - dt * 3.4);
   }
@@ -1042,11 +1082,14 @@ export class Renderer {
       g.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
     }
 
-    g.fillStyle = '#e6eef6';
-    g.fillRect(0, 0, this.W, this.H);
-    if (this.bg) g.drawImage(this.bg, 0, 0, this.W, this.H);
-
-    this.drawCourt(g);
+    if (this.staticLayer) {
+      g.drawImage(this.staticLayer, 0, 0, this.W, this.H);
+    } else {
+      g.fillStyle = '#e6eef6';
+      g.fillRect(0, 0, this.W, this.H);
+      if (this.bg) g.drawImage(this.bg, 0, 0, this.W, this.H);
+      this.drawCourt(g);
+    }
     this.drawLandingHint(g);
 
     const items = [];

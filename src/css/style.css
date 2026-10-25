@@ -788,6 +788,23 @@ html, body {
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95);
 }
 
+.perf-hud {
+  position: absolute;
+  right: 10px;
+  top: 56px;
+  z-index: 96;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #16324a;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(24, 48, 76, 0.14);
+  border-radius: 8px;
+  padding: 6px 9px;
+  white-space: pre;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 /* ============ Toast ============ */
 .toast {
   position: absolute;

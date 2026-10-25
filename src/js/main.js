@@ -162,6 +162,18 @@ function myIdx() {
   return state.localSide < 0 ? 0 : 1;
 }
 
+const perf = { draw: 0, frame: 16.7, max: 0 };
+const perfHud = document.getElementById('perfHud');
+if (new URLSearchParams(location.search).get('debug') === '1' && perfHud) {
+  perfHud.classList.remove('hidden');
+}
+if (typeof window !== 'undefined') window.__perf = perf;
+window.addEventListener('keydown', function (e) {
+  if (e.key === 'd' || e.key === 'D') {
+    if (perfHud) perfHud.classList.toggle('hidden');
+  }
+});
+
 let lastFrame = performance.now();
 let acc = 0;
 let fpsAcc = 0;
@@ -178,8 +190,19 @@ function frame(now) {
     fpsAcc = 0;
     fpsCount = 0;
     ui.setStats(state.net ? state.net.latency : null, fpsVal);
+    if (perfHud && !perfHud.classList.contains('hidden')) {
+      perfHud.textContent = `fps      ${fpsVal}
+draw     ${perf.draw.toFixed(2)} ms
+drawMax  ${perf.max.toFixed(1)} ms
+frame    ${perf.frame.toFixed(1)} ms
+dpr      ${renderer.dpr.toFixed(2)}
+px       ${(renderer.canvas.width * renderer.canvas.height / 10000).toFixed(0)} 万
+ping     ${state.net ? state.net.latency + ' ms' : '-'}
+net      ${state.net ? state.net.mode : '-'}`;
+    }
   }
 
+  const tDraw0 = performance.now();
   if (state.running) {
     if (state.mode === 'solo') {
       acc += dt;
@@ -603,7 +626,7 @@ setTimeout(() => {
   fetch(healthUrl, { cache: 'no-store' }).then((r) => r.json()).then(() => {
     ui.setNetState(base.http ? '联机 · 远程服务器' : '联机 · 本机服务', 'ok');
   }).catch(() => ui.setNetState('离线 · 可单机练习', 'bad'));
-}, 420);
+}, 60);
 
 if (typeof window !== 'undefined') {
   window.__game = {
