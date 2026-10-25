@@ -110,21 +110,21 @@ export class Renderer {
     const minN = Math.min(...ratios);
     const maxN = Math.max(...ratios);
     const span = Math.max(maxN - minN, 0.001);
-    this.focal = (w * 0.90) / span;
+    this.focal = Math.min(w * 0.90, h * 1.62) / span;
     this.cx = w / 2 - ((minN + maxN) / 2) * this.focal;
 
     const t1 = this.rawProject(0, 0, -COURT.HALF_WIDTH - 0.6);
     const t2 = this.rawProject(0, 0, COURT.HALF_WIDTH + 0.6);
     let yTop = -t1.vy * (this.focal / t1.d);
     let yBot = -t2.vy * (this.focal / t2.d);
-    const maxH = h * 0.66;
+    const maxH = h * 0.60;
     if (yBot - yTop > maxH) {
       this.focal *= maxH / (yBot - yTop);
       this.cx = w / 2 - ((minN + maxN) / 2) * this.focal;
       yTop = -t1.vy * (this.focal / t1.d);
       yBot = -t2.vy * (this.focal / t2.d);
     }
-    this.cy = h * 0.585 - (yTop + yBot) / 2;
+    this.cy = h * 0.565 - (yTop + yBot) / 2;
 
     this.buildBackground();
   }
