@@ -1,6 +1,29 @@
 import { COURT, BALL, PLAYER } from './shared/constants.js';
 
-const CAM = { eyeX: -1.35, eyeY: 10.6, eyeZ: 14.3, lookY: 1.05 };
+const CAM = { eyeX: -3.15, eyeY: 11.0, eyeZ: 14.4, lookY: 1.05 };
+
+const THEME = {
+  skyTop: '#f6f9fc',
+  skyMid: '#e7eff7',
+  skyLow: '#d5e2ee',
+  skyFloor: '#c6d5e3',
+  crowdBase: 'rgba(206, 219, 232, 0.92)',
+  crowdFade: 'rgba(242, 246, 250, 0.92)',
+  apronFar: '#b7c8d7',
+  apronNear: '#a3b6c8',
+  courtFar: '#43a56c',
+  courtMid: '#4cb273',
+  courtNear: '#55bb7c',
+  floorFar: '#c9d7e4',
+  floorNear: '#b4c5d6',
+  netFill: 'rgba(252, 254, 255, 0.5)',
+  netLine: 'rgba(112, 142, 168, 0.45)',
+  netTape: '#ffffff',
+  shadow: '36, 64, 92',
+  line: 'rgba(255, 255, 255, 0.96)',
+  lineSoft: 'rgba(255, 255, 255, 0.7)',
+  ink: '#16283c',
+};
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -55,7 +78,7 @@ export class Renderer {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     this.cx = w / 2;
-    this.cy = h * 0.485;
+    this.cy = h * 0.5;
 
     const eye = [CAM.eyeX, CAM.eyeY, CAM.eyeZ];
     const look = [0, CAM.lookY, 0];
@@ -77,18 +100,27 @@ export class Renderer {
     ];
     this.eye = eye;
 
-    const c1 = this.rawProject(COURT.HALF_LENGTH, 0, COURT.HALF_WIDTH);
-    const c2 = this.rawProject(-COURT.HALF_LENGTH, 0, COURT.HALF_WIDTH);
-    const halfSpan = Math.max(Math.abs(c1.vx / c1.d), Math.abs(c2.vx / c2.d), 0.001);
-    this.focal = (w * 0.452) / halfSpan;
+    const corners = [
+      [COURT.HALF_LENGTH, -COURT.HALF_WIDTH],
+      [COURT.HALF_LENGTH, COURT.HALF_WIDTH],
+      [-COURT.HALF_LENGTH, -COURT.HALF_WIDTH],
+      [-COURT.HALF_LENGTH, COURT.HALF_WIDTH],
+    ].map(([x, z]) => this.rawProject(x, 0, z));
+    const ratios = corners.map((c) => c.vx / c.d);
+    const minN = Math.min(...ratios);
+    const maxN = Math.max(...ratios);
+    const span = Math.max(maxN - minN, 0.001);
+    this.focal = (w * 0.90) / span;
+    this.cx = w / 2 - ((minN + maxN) / 2) * this.focal;
 
-    const t1 = this.rawProject(0, 0, -COURT.HALF_WIDTH - 1.0);
-    const t2 = this.rawProject(0, 0, COURT.HALF_WIDTH + 1.0);
+    const t1 = this.rawProject(0, 0, -COURT.HALF_WIDTH - 0.6);
+    const t2 = this.rawProject(0, 0, COURT.HALF_WIDTH + 0.6);
     let yTop = -t1.vy * (this.focal / t1.d);
     let yBot = -t2.vy * (this.focal / t2.d);
-    const maxH = h * 0.665;
+    const maxH = h * 0.66;
     if (yBot - yTop > maxH) {
       this.focal *= maxH / (yBot - yTop);
+      this.cx = w / 2 - ((minN + maxN) / 2) * this.focal;
       yTop = -t1.vy * (this.focal / t1.d);
       yBot = -t2.vy * (this.focal / t2.d);
     }
@@ -126,33 +158,31 @@ export class Renderer {
     c.height = Math.round(h * this.dpr);
     const g = c.getContext('2d');
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    g.fillStyle = '#e6eef6';
+    g.fillRect(0, 0, w, h);
 
-    const floorY = this.project(0, 0, -COURT.HALF_WIDTH).y;
-    const wallBot = Math.min(floorY - h * 0.03, h * 0.62);
+    const floorY = this.project(0, 0, -COURT.HALF_WIDTH - 1).y;
+    const wallBot = Math.min(floorY - h * 0.02, h * 0.60);
 
     const wall = g.createLinearGradient(0, 0, 0, wallBot);
-    wall.addColorStop(0, '#03060c');
-    wall.addColorStop(0.35, '#060f1a');
-    wall.addColorStop(0.72, '#0b1a29');
-    wall.addColorStop(1, '#13263a');
+    wall.addColorStop(0, THEME.skyTop);
+    wall.addColorStop(0.42, THEME.skyMid);
+    wall.addColorStop(0.8, THEME.skyLow);
+    wall.addColorStop(1, THEME.skyFloor);
     g.fillStyle = wall;
     g.fillRect(0, 0, w, wallBot + 2);
 
     const rnd = mulberry(20261025);
     const seatTop = h * 0.045;
-    const seatBot = wallBot - h * 0.135;
+    const seatBot = Math.max(seatTop + h * 0.09, wallBot - h * 0.095);
 
-    const baseG = g.createLinearGradient(0, seatTop, 0, seatBot);
-    baseG.addColorStop(0, 'rgba(9, 16, 27, 0.94)');
-    baseG.addColorStop(0.55, 'rgba(15, 27, 42, 0.9)');
-    baseG.addColorStop(1, 'rgba(23, 39, 58, 0.84)');
-    g.fillStyle = baseG;
+    g.fillStyle = THEME.crowdBase;
     g.fillRect(0, seatTop, w, seatBot - seatTop);
 
-    g.strokeStyle = 'rgba(96, 140, 186, 0.05)';
+    g.strokeStyle = 'rgba(140, 168, 195, 0.28)';
     g.lineWidth = 1;
     for (let i = 1; i < 7; i++) {
-      const yy = seatTop + (seatBot - seatTop) * Math.pow(i / 7, 1.3);
+      const yy = seatTop + (seatBot - seatTop) * Math.pow(i / 7, 1.28);
       g.beginPath();
       g.moveTo(0, yy);
       g.lineTo(w, yy);
@@ -160,22 +190,22 @@ export class Renderer {
     }
 
     g.save();
-    g.filter = `blur(${Math.max(1, h * 0.0022).toFixed(2)}px)`;
-    const unit = Math.max(1.8, Math.min(3.8, w / 480));
-    const total = Math.round(w * 0.55);
+    g.filter = `blur(${Math.max(0.7, h * 0.0016).toFixed(2)}px)`;
+    const unit = Math.max(1.7, Math.min(3.4, w / 520));
+    const total = Math.round(w * 0.62);
     for (let i = 0; i < total; i++) {
       const px = rnd() * w;
       const py = seatTop + rnd() * (seatBot - seatTop);
       const depth = (py - seatTop) / Math.max(1, seatBot - seatTop);
-      const k = (0.72 + depth * 0.75) * (0.76 + rnd() * 0.55);
-      const bw = unit * k * 1.15;
-      const bh = unit * k * 2.25;
+      const kk = (0.72 + depth * 0.75) * (0.76 + rnd() * 0.55);
+      const bw = unit * kk * 1.15;
+      const bh = unit * kk * 2.25;
       const tint = rnd();
-      const col = tint > 0.93 ? '255, 186, 138'
-        : tint > 0.85 ? '128, 214, 232'
-          : tint > 0.7 ? '150, 176, 214'
-            : tint > 0.4 ? '188, 200, 218' : '86, 100, 124';
-      g.fillStyle = `rgba(${col}, ${0.055 + depth * 0.19 + rnd() * 0.09})`;
+      const col = tint > 0.9 ? '232, 128, 92'
+        : tint > 0.78 ? '70, 168, 208'
+          : tint > 0.58 ? '96, 132, 188'
+            : tint > 0.3 ? '120, 144, 170' : '84, 104, 128';
+      g.fillStyle = `rgba(${col}, ${0.26 + depth * 0.4 + rnd() * 0.14})`;
       rr(g, px, py - bh, bw, bh, bw * 0.45);
       g.fill();
       g.beginPath();
@@ -185,68 +215,61 @@ export class Renderer {
     g.restore();
 
     const fade = g.createLinearGradient(0, seatTop, 0, seatBot);
-    fade.addColorStop(0, 'rgba(4, 9, 16, 0.88)');
-    fade.addColorStop(0.45, 'rgba(4, 9, 16, 0.35)');
-    fade.addColorStop(1, 'rgba(4, 9, 16, 0.06)');
+    fade.addColorStop(0, 'rgba(243, 248, 252, 0.88)');
+    fade.addColorStop(0.45, 'rgba(243, 248, 252, 0.18)');
+    fade.addColorStop(1, 'rgba(243, 248, 252, 0)');
     g.fillStyle = fade;
     g.fillRect(0, seatTop, w, seatBot - seatTop);
 
-    const trussY = h * 0.05;
-    g.strokeStyle = 'rgba(96, 140, 184, 0.15)';
+    const trussY = h * 0.052;
+    g.strokeStyle = 'rgba(150, 178, 202, 0.5)';
     g.lineWidth = Math.max(1, h * 0.0016);
     g.beginPath();
     g.moveTo(0, trussY); g.lineTo(w, trussY);
-    g.moveTo(0, trussY + h * 0.013); g.lineTo(w, trussY + h * 0.013);
+    g.moveTo(0, trussY + h * 0.012); g.lineTo(w, trussY + h * 0.012);
     g.stroke();
-    g.strokeStyle = 'rgba(96, 140, 184, 0.1)';
+    g.strokeStyle = 'rgba(150, 178, 202, 0.3)';
     for (let x = -h * 0.05; x < w; x += h * 0.032) {
       g.beginPath();
-      g.moveTo(x, trussY + h * 0.013);
+      g.moveTo(x, trussY + h * 0.012);
       g.lineTo(x + h * 0.016, trussY);
       g.stroke();
     }
 
-    const adH = h * 0.055;
-    const adTop = wallBot - adH - h * 0.012;
-    g.fillStyle = '#050c15';
+    for (const lx of [0.5, 0.18, 0.82]) {
+      const lxp = w * lx;
+      const lg = g.createRadialGradient(lxp, -h * 0.08, 0, lxp, -h * 0.08, h * 0.65);
+      lg.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+      lg.addColorStop(0.35, 'rgba(255, 255, 255, 0.4)');
+      lg.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      g.fillStyle = lg;
+      g.fillRect(0, 0, w, wallBot);
+    }
+
+    const adH = Math.min(h * 0.062, Math.max(18, wallBot * 0.14));
+    const adTop = wallBot - adH - h * 0.004;
+    g.fillStyle = '#f8fbfe';
     g.fillRect(0, adTop, w, adH);
     const segs = 8;
     for (let i = 0; i < segs; i++) {
       const sx0 = (w / segs) * i;
       const sw = w / segs;
-      const hue = i % 3 === 0 ? '250, 160, 90' : i % 3 === 1 ? '90, 220, 235' : '130, 170, 240';
+      const hue = i % 3 === 0 ? '236, 138, 96' : i % 3 === 1 ? '70, 176, 206' : '104, 148, 214';
       const gg2 = g.createLinearGradient(sx0, adTop, sx0 + sw, adTop + adH);
-      gg2.addColorStop(0, `rgba(${hue}, 0.08)`);
+      gg2.addColorStop(0, `rgba(${hue}, 0.10)`);
       gg2.addColorStop(0.5, `rgba(${hue}, 0.26)`);
-      gg2.addColorStop(1, `rgba(${hue}, 0.09)`);
+      gg2.addColorStop(1, `rgba(${hue}, 0.11)`);
       g.fillStyle = gg2;
       g.fillRect(sx0 + 2, adTop + 2, sw - 4, adH - 4);
-      g.fillStyle = `rgba(${hue}, 0.42)`;
+      g.fillStyle = `rgba(${hue}, 0.62)`;
       for (let b2 = 0; b2 < 3; b2++) {
         const bw = sw * (0.07 + ((i * 7 + b2 * 13) % 10) / 40);
         g.fillRect(sx0 + sw * (0.14 + b2 * 0.24), adTop + adH * (0.34 + (b2 % 2) * 0.18), bw, adH * 0.1);
       }
     }
-    g.fillStyle = 'rgba(150, 210, 245, 0.16)';
+    g.fillStyle = 'rgba(150, 178, 202, 0.5)';
     g.fillRect(0, adTop, w, 1);
     g.fillRect(0, adTop + adH - 1, w, 1);
-
-    const haze = g.createLinearGradient(0, seatTop - h * 0.02, 0, wallBot);
-    haze.addColorStop(0, 'rgba(7, 15, 26, 0.7)');
-    haze.addColorStop(0.42, 'rgba(7, 15, 26, 0.42)');
-    haze.addColorStop(1, 'rgba(7, 15, 26, 0.05)');
-    g.fillStyle = haze;
-    g.fillRect(0, seatTop - h * 0.02, w, wallBot - seatTop + h * 0.02);
-
-    for (const lx of [0.5, 0.16, 0.84]) {
-      const lxp = w * lx;
-      const lg = g.createRadialGradient(lxp, -h * 0.05, 0, lxp, -h * 0.05, h * 0.6);
-      lg.addColorStop(0, 'rgba(200, 230, 255, 0.2)');
-      lg.addColorStop(0.3, 'rgba(150, 200, 250, 0.06)');
-      lg.addColorStop(1, 'rgba(150, 200, 250, 0)');
-      g.fillStyle = lg;
-      g.fillRect(0, 0, w, wallBot);
-    }
 
     this.bg = c;
     this.wallBot = wallBot;
@@ -269,40 +292,33 @@ export class Renderer {
     const ohl = HL + 1.05;
     const p = (x, z) => this.project(x, 0, z);
 
-    const farL = p(-ohl, -ohw);
-    const farR = p(ohl, -ohw);
-    const nearR = p(ohl, ohw);
-    const nearL = p(-ohl, ohw);
-
-    const floorG = g.createLinearGradient(0, farL.y, 0, nearL.y);
-    floorG.addColorStop(0, '#081118');
-    floorG.addColorStop(0.45, '#0b1720');
-    floorG.addColorStop(1, '#0d1d26');
-    this.poly(g, [farL, farR, nearR, nearL], floorG);
+    const floorG = g.createLinearGradient(0, p(0, -ohw).y, 0, p(0, ohw).y);
+    floorG.addColorStop(0, THEME.floorFar);
+    floorG.addColorStop(1, THEME.floorNear);
+    this.poly(g, [p(-ohl, -ohw), p(ohl, -ohw), p(ohl, ohw), p(-ohl, ohw)], floorG);
 
     const apronG = g.createLinearGradient(0, p(0, -HW - 0.9).y, 0, p(0, HW + 0.9).y);
-    apronG.addColorStop(0, '#0c2624');
-    apronG.addColorStop(0.55, '#0f3631');
-    apronG.addColorStop(1, '#123f39');
+    apronG.addColorStop(0, THEME.apronFar);
+    apronG.addColorStop(1, THEME.apronNear);
     this.poly(g, [p(-ohl, -HW - 0.95), p(ohl, -HW - 0.95), p(ohl, HW + 0.95), p(-ohl, HW + 0.95)], apronG);
 
     const courtG = g.createLinearGradient(0, p(0, -HW).y, 0, p(0, HW).y);
-    courtG.addColorStop(0, '#1a5b58');
-    courtG.addColorStop(0.45, '#267a72');
-    courtG.addColorStop(1, '#2f9083');
+    courtG.addColorStop(0, THEME.courtFar);
+    courtG.addColorStop(0.5, THEME.courtMid);
+    courtG.addColorStop(1, THEME.courtNear);
     this.poly(g, [p(-HL, -HW), p(HL, -HW), p(HL, HW), p(-HL, HW)], courtG);
 
     const sheen = g.createLinearGradient(0, p(0, -HW).y, 0, p(0, HW).y);
-    sheen.addColorStop(0, 'rgba(190, 255, 250, 0.11)');
-    sheen.addColorStop(0.5, 'rgba(190, 255, 250, 0.035)');
-    sheen.addColorStop(1, 'rgba(190, 255, 250, 0)');
+    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
+    sheen.addColorStop(0.45, 'rgba(255, 255, 255, 0.05)');
+    sheen.addColorStop(1, 'rgba(255, 255, 255, 0)');
     this.poly(g, [p(-HL, -HW), p(HL, -HW), p(HL, HW), p(-HL, HW)], sheen);
 
-    const lineW = (x) => Math.max(1.1, this.project(x, 0, 0).s * 0.048);
+    const lineW = (x) => Math.max(1.2, this.project(x, 0, 0).s * 0.05);
     const line = (x1, z1, x2, z2, strong) => {
       const a = p(x1, z1);
       const b = p(x2, z2);
-      g.strokeStyle = strong ? 'rgba(246, 255, 255, 0.9)' : 'rgba(246, 255, 255, 0.6)';
+      g.strokeStyle = strong ? THEME.line : THEME.lineSoft;
       g.lineWidth = strong ? lineW(x1) * 1.2 : lineW(x1) * 0.9;
       g.beginPath();
       g.moveTo(a.x, a.y);
@@ -319,7 +335,7 @@ export class Renderer {
     line(-COURT.SHORT_SERVICE, 0, COURT.SHORT_SERVICE, 0, false);
 
     const poolC = p(0, 0);
-    const poolR = this.W * 0.30;
+    const poolR = this.W * 0.32;
     g.save();
     g.beginPath();
     const cl0 = p(-HL, -HW);
@@ -333,106 +349,87 @@ export class Renderer {
     g.closePath();
     g.clip();
     const pool = g.createRadialGradient(poolC.x, poolC.y, 0, poolC.x, poolC.y, poolR);
-    pool.addColorStop(0, 'rgba(150, 255, 240, 0.055)');
-    pool.addColorStop(0.65, 'rgba(150, 255, 240, 0.016)');
-    pool.addColorStop(1, 'rgba(150, 255, 240, 0)');
-    g.globalCompositeOperation = 'lighter';
+    pool.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+    pool.addColorStop(0.7, 'rgba(255, 255, 255, 0.05)');
+    pool.addColorStop(1, 'rgba(255, 255, 255, 0)');
     g.fillStyle = pool;
     g.fillRect(0, 0, this.W, this.H);
     g.restore();
   }
 
   drawNet(g) {
-    const anchor = this.project(0, 0, 0);
-    const top = this.project(0, COURT.NET_CENTER, 0);
-    const k = anchor.s;
-    if (k < 0.5) return;
-    const halfW = 2.98 * k;
-    const topHalf = halfW * 0.985;
-    const cx = anchor.x;
-    const yBase = anchor.y;
-    const yTop = top.y;
-    const h = yBase - yTop;
+    const Z0 = -COURT.NET_HALF_WIDTH - 0.28;
+    const Z1 = COURT.NET_HALF_WIDTH + 0.28;
+    const H = COURT.NET_CENTER;
+    const p = (y, z) => this.project(0, y, z);
 
-    const mesh = g.createLinearGradient(cx - halfW, 0, cx + halfW, 0);
-    mesh.addColorStop(0, 'rgba(206, 232, 252, 0.02)');
-    mesh.addColorStop(0.5, 'rgba(216, 240, 255, 0.055)');
-    mesh.addColorStop(1, 'rgba(206, 232, 252, 0.02)');
+    const b0 = p(0, Z0), b1 = p(0, Z1);
+    const t0 = p(H, Z0), t1 = p(H, Z1);
+    const mid = this.project(0, H * 0.5, 0);
+    if (mid.s < 0.4) return;
+
     g.beginPath();
-    g.moveTo(cx - topHalf, yTop);
-    g.lineTo(cx + topHalf, yTop);
-    g.lineTo(cx + halfW, yBase);
-    g.lineTo(cx - halfW, yBase);
+    g.moveTo(b0.x, b0.y);
+    g.lineTo(b1.x, b1.y);
+    g.lineTo(t1.x, t1.y);
+    g.lineTo(t0.x, t0.y);
     g.closePath();
-    g.fillStyle = mesh;
+    g.fillStyle = THEME.netFill;
     g.fill();
 
     g.save();
     g.clip();
-    g.strokeStyle = 'rgba(226, 242, 255, 0.24)';
-    g.lineWidth = Math.max(0.5, k * 0.0055);
-    const rows = 14;
-    for (let i = 0; i <= rows; i++) {
-      const t = i / rows;
-      const y = yTop + h * t;
-      const hwid = lerp(topHalf, halfW, t);
+    g.strokeStyle = THEME.netLine;
+    g.lineWidth = Math.max(0.5, mid.s * 0.0055);
+
+    for (let y = 0.055; y < H; y += 0.075) {
+      const a = p(y, Z0);
+      const b = p(y, Z1);
       g.beginPath();
-      g.moveTo(cx - hwid, y);
-      g.lineTo(cx + hwid, y);
+      g.moveTo(a.x, a.y);
+      g.lineTo(b.x, b.y);
       g.stroke();
     }
-    const cols = 26;
-    for (let i = 0; i <= cols; i++) {
-      const t = i / cols;
-      const xb = cx - halfW + halfW * 2 * t;
-      const xt = cx - topHalf + topHalf * 2 * t;
+    for (let z = Z0; z <= Z1 + 0.001; z += (Z1 - Z0) / 16) {
+      const a = p(0, z);
+      const b = p(H, z);
       g.beginPath();
-      g.moveTo(xt, yTop);
-      g.lineTo(xb, yBase);
+      g.moveTo(a.x, a.y);
+      g.lineTo(b.x, b.y);
       g.stroke();
     }
     g.restore();
 
-    const tapeH = Math.max(2.4, k * 0.036);
-    const tape = g.createLinearGradient(0, yTop - tapeH, 0, yTop + tapeH * 0.4);
-    tape.addColorStop(0, 'rgba(255,255,255,0.72)');
-    tape.addColorStop(0.45, '#ffffff');
-    tape.addColorStop(1, 'rgba(226, 238, 250, 0.9)');
-    g.fillStyle = tape;
+    const tapeUp = Math.max(2.2, mid.s * 0.030);
+    g.strokeStyle = THEME.netTape;
+    g.lineWidth = Math.max(2, mid.s * 0.045);
+    g.lineCap = 'butt';
     g.beginPath();
-    g.moveTo(cx - topHalf - 1, yTop - tapeH * 0.42);
-    g.lineTo(cx + topHalf + 1, yTop - tapeH * 0.42);
-    g.lineTo(cx + topHalf + 1, yTop + tapeH * 0.58);
-    g.lineTo(cx - topHalf - 1, yTop + tapeH * 0.58);
-    g.closePath();
-    g.fill();
+    g.moveTo(t0.x, t0.y);
+    g.lineTo(t1.x, t1.y);
+    g.stroke();
+    g.strokeStyle = 'rgba(120, 150, 175, 0.35)';
+    g.lineWidth = Math.max(0.6, mid.s * 0.006);
+    g.beginPath();
+    g.moveTo(t0.x, t0.y + tapeUp * 0.5 + g.lineWidth);
+    g.lineTo(t1.x, t1.y + tapeUp * 0.5 + g.lineWidth);
+    g.stroke();
 
-    const postW = Math.max(3, k * 0.058);
-    for (const side of [-1, 1]) {
-      const px = cx + side * (halfW + postW * 0.6);
-      const grd = g.createLinearGradient(px - postW, 0, px + postW, 0);
-      grd.addColorStop(0, '#0b1622');
-      grd.addColorStop(0.35, '#3a627f');
-      grd.addColorStop(0.62, '#1d3448');
-      grd.addColorStop(1, '#0a1520');
-      g.fillStyle = grd;
-      rr(g, px - postW / 2, yTop - tapeH * 0.5, postW, h + tapeH * 0.5, postW * 0.35);
-      g.fill();
-    }
-  }
-
-  drawNetPostsUnused(g) {
-    for (const z of [-COURT.NET_HALF_WIDTH, COURT.NET_HALF_WIDTH]) {
-      const base = this.project(0, 0, z);
-      const top = this.project(0, COURT.NET_POST, z);
-      const wpx = Math.max(2.5, base.s * 0.055);
+    for (const z of [Z0, Z1]) {
+      const base = p(0, z);
+      const top = p(COURT.NET_POST, z);
+      const wpx = Math.max(3, base.s * 0.062);
       const grd = g.createLinearGradient(base.x - wpx, 0, base.x + wpx, 0);
-      grd.addColorStop(0, '#0b1622');
-      grd.addColorStop(0.4, '#3a627f');
-      grd.addColorStop(0.62, '#1d3448');
-      grd.addColorStop(1, '#0a1520');
+      grd.addColorStop(0, '#8ba3b8');
+      grd.addColorStop(0.35, '#f4f9fd');
+      grd.addColorStop(0.62, '#c5d4e0');
+      grd.addColorStop(1, '#7d95ab');
       g.fillStyle = grd;
-      rr(g, base.x - wpx / 2, top.y, wpx, base.y - top.y, wpx * 0.35);
+      rr(g, base.x - wpx / 2, top.y - wpx * 0.3, wpx, base.y - top.y + wpx * 0.3, wpx * 0.4);
+      g.fill();
+      g.fillStyle = 'rgba(90, 120, 145, 0.35)';
+      g.beginPath();
+      g.ellipse(base.x, base.y + wpx * 0.1, wpx * 0.9, wpx * 0.32, 0, 0, Math.PI * 2);
       g.fill();
     }
   }
@@ -443,9 +440,9 @@ export class Renderer {
     const rx = radius * p.s * (1.35 - k * 0.35);
     const ry = rx * 0.34;
     const grd = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, rx);
-    grd.addColorStop(0, `rgba(0, 8, 14, ${0.5 * alpha * k})`);
-    grd.addColorStop(0.6, `rgba(0, 8, 14, ${0.24 * alpha * k})`);
-    grd.addColorStop(1, 'rgba(0, 8, 14, 0)');
+    grd.addColorStop(0, `rgba(${THEME.shadow}, ${0.34 * alpha * k})`);
+    grd.addColorStop(0.6, `rgba(${THEME.shadow}, ${0.16 * alpha * k})`);
+    grd.addColorStop(1, `rgba(${THEME.shadow}, 0)`);
     g.fillStyle = grd;
     g.beginPath();
     g.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
@@ -460,8 +457,8 @@ export class Renderer {
 
     const dir = side < 0 ? 1 : -1;
     const kit = side < 0
-      ? { shirt: '#ff7d4e', shirt2: '#e04f26', trim: '#ffd9c7', skin: '#f0c39c', skin2: '#d9a87e', hair: '#2a1a14', shoe: '#f4f7fb' }
-      : { shirt: '#35d5ff', shirt2: '#0a86bd', trim: '#c9f2ff', skin: '#e8bb94', skin2: '#ce9a72', hair: '#16212e', shoe: '#f4f7fb' };
+      ? { shirt: '#f2663c', shirt2: '#d14420', trim: '#ffe4d8', skin: '#f2c49d', skin2: '#dcab84', hair: '#2a1a14', shoe: '#ffffff' }
+      : { shirt: '#2f93d8', shirt2: '#146ba8', trim: '#dcf1ff', skin: '#eec09a', skin2: '#d3a077', hair: '#1a2735', shoe: '#ffffff' };
 
     const speed = Math.hypot(p.vx, p.vz);
     p.runPhase = (p.runPhase || 0) + speed * dt * 5.6;
@@ -473,9 +470,7 @@ export class Renderer {
 
     g.save();
     g.translate(base.x, base.y);
-    if (Math.abs(p.vz) > 0.3) {
-      g.rotate(clamp(-p.vz * 0.035, -0.08, 0.08));
-    }
+    if (Math.abs(p.vz) > 0.3) g.rotate(clamp(-p.vz * 0.035, -0.08, 0.08));
 
     const hipY = -H * 0.468;
     const shoulderY = -H * 0.812;
@@ -507,7 +502,7 @@ export class Renderer {
       g.lineTo(kneeX, kneeY);
       g.lineTo(footX, footY);
       g.stroke();
-      g.strokeStyle = 'rgba(248,252,255,0.92)';
+      g.strokeStyle = 'rgba(255,255,255,0.95)';
       g.lineWidth = width * 0.7;
       g.beginPath();
       g.moveTo(lerp(kneeX, footX, 0.74), lerp(kneeY, footY, 0.74));
@@ -517,9 +512,13 @@ export class Renderer {
       g.beginPath();
       g.ellipse(footX + dir * H * 0.020, footY + H * 0.002, H * 0.052, H * 0.023, 0, 0, Math.PI * 2);
       g.fill();
+      g.fillStyle = side < 0 ? 'rgba(209,68,32,0.9)' : 'rgba(20,107,168,0.9)';
+      g.beginPath();
+      g.ellipse(footX + dir * H * 0.020, footY + H * 0.014, H * 0.052, H * 0.008, 0, 0, Math.PI * 2);
+      g.fill();
     };
 
-    drawLeg(legL * 0.9, H * 0.052, kit.skin2, '#d9e2ec', H * 0.079);
+    drawLeg(legL * 0.9, H * 0.052, kit.skin2, '#e9eef4', H * 0.079);
 
     const offArmAng = 2.0 - (moving ? Math.sin(p.runPhase + 1.1) * 0.35 : 0.05);
     const offShX = -dir * H * 0.052;
@@ -539,7 +538,7 @@ export class Renderer {
     const torsoTop = shoulderY - H * 0.012;
     const torsoBot = hipY + H * 0.028;
 
-    g.fillStyle = 'rgba(16, 26, 38, 0.92)';
+    g.fillStyle = side < 0 ? 'rgba(38, 52, 70, 0.95)' : 'rgba(28, 44, 62, 0.95)';
     g.beginPath();
     g.moveTo(-torsoW * 0.47, hipY - H * 0.012);
     g.lineTo(torsoW * 0.47, hipY - H * 0.012);
@@ -565,7 +564,7 @@ export class Renderer {
     g.closePath();
     g.fill();
 
-    g.fillStyle = 'rgba(255,255,255,0.13)';
+    g.fillStyle = 'rgba(255,255,255,0.2)';
     g.beginPath();
     g.moveTo(dir * torsoW * 0.12, torsoTop + H * 0.01);
     g.lineTo(dir * torsoW * 0.46, torsoTop + H * 0.02);
@@ -625,10 +624,10 @@ export class Renderer {
     const rcy = rBaseY + Math.sin(racketAng) * racketLen * 0.62;
 
     if (swing > 0.2) {
-      const a = Math.sin((1 - swing) * Math.PI) * 0.5;
+      const a = Math.sin((1 - swing) * Math.PI) * 0.45;
       g.save();
       g.globalAlpha = a;
-      g.strokeStyle = 'rgba(200, 245, 255, 0.9)';
+      g.strokeStyle = 'rgba(80, 200, 255, 0.95)';
       g.lineWidth = H * 0.018;
       g.lineCap = 'round';
       g.beginPath();
@@ -637,7 +636,7 @@ export class Renderer {
       g.restore();
     }
 
-    g.strokeStyle = '#22323f';
+    g.strokeStyle = '#37485c';
     g.lineWidth = H * 0.021;
     g.beginPath();
     g.moveTo(rBaseX, rBaseY);
@@ -647,12 +646,12 @@ export class Renderer {
     g.save();
     g.translate(rcx, rcy);
     g.rotate(racketAng * dir);
-    g.strokeStyle = 'rgba(240, 250, 255, 0.95)';
-    g.lineWidth = H * 0.0155;
+    g.strokeStyle = 'rgba(52, 74, 96, 0.95)';
+    g.lineWidth = H * 0.016;
     g.beginPath();
     g.ellipse(0, 0, racketLen * 0.285, racketLen * 0.215, 0, 0, Math.PI * 2);
     g.stroke();
-    g.strokeStyle = 'rgba(190, 225, 248, 0.38)';
+    g.strokeStyle = 'rgba(120, 150, 175, 0.6)';
     g.lineWidth = Math.max(0.5, H * 0.0042);
     for (let i = -2; i <= 2; i++) {
       const yy = i * racketLen * 0.068;
@@ -692,7 +691,7 @@ export class Renderer {
     g.ellipse(-dir * headR * 0.55, headCY + headR * 0.2, headR * 0.38, headR * 0.5, dir * 0.4, 0, Math.PI * 2);
     g.fill();
 
-    g.fillStyle = 'rgba(26, 20, 18, 0.9)';
+    g.fillStyle = 'rgba(30, 24, 20, 0.9)';
     g.beginPath();
     g.ellipse(dir * headR * 0.4, headCY + headR * 0.08, headR * 0.085, headR * 0.115, 0, 0, Math.PI * 2);
     g.fill();
@@ -700,8 +699,8 @@ export class Renderer {
     g.restore();
 
     if (isLocal) {
-      g.strokeStyle = side < 0 ? 'rgba(255, 138, 92, 0.5)' : 'rgba(77, 225, 255, 0.5)';
-      g.lineWidth = H * 0.007;
+      g.strokeStyle = side < 0 ? 'rgba(226, 92, 52, 0.6)' : 'rgba(24, 128, 196, 0.6)';
+      g.lineWidth = Math.max(1, H * 0.008);
       g.setLineDash([H * 0.045, H * 0.035]);
       g.beginPath();
       g.ellipse(foot.x, foot.y, H * 0.185, H * 0.05, 0, 0, Math.PI * 2);
@@ -715,8 +714,8 @@ export class Renderer {
       const y = base.y - H * 1.22;
       const w = Math.max(30, H * 0.42);
       const hh = Math.max(4, H * 0.038);
-      const col = p.charge > 0.78 ? '#ffd166' : p.charge > 0.45 ? '#5ef0d4' : '#9dbdd8';
-      g.fillStyle = 'rgba(6, 14, 24, 0.62)';
+      const col = p.charge > 0.78 ? '#ef9a2c' : p.charge > 0.45 ? '#16a97f' : '#7f9ab5';
+      g.fillStyle = 'rgba(255, 255, 255, 0.72)';
       rr(g, base.x - w / 2, y, w, hh, hh / 2);
       g.fill();
       g.fillStyle = col;
@@ -731,36 +730,28 @@ export class Renderer {
     const p = this.project(b.x, b.y, b.z);
     if (p.d < 0.5) return;
     const spd = Math.hypot(b.vx, b.vy, b.vz);
-    const r = Math.max(2.6, p.s * 0.055);
+    const r = Math.max(2.8, p.s * 0.058);
 
     if (b.active) this.trail.push({ x: p.x, y: p.y, t: this.time, s: p.s });
     if (this.trail.length > 26) this.trail.shift();
 
-    this.drawShadow(g, b.x, b.z, 0.16, 0.85, b.y);
+    this.drawShadow(g, b.x, b.z, 0.16, 0.8, b.y);
 
     if (b.active) {
       g.save();
-      g.globalCompositeOperation = 'lighter';
       for (let i = 0; i < this.trail.length - 1; i++) {
         const a = this.trail[i];
         const c = this.trail[i + 1];
         const age = this.time - c.t;
-        if (age > 0.2) continue;
-        const al = (1 - age / 0.2) * 0.3 * clamp(spd / 22, 0.3, 1);
-        g.strokeStyle = `rgba(200, 245, 255, ${al})`;
-        g.lineWidth = r * (0.4 + (1 - age / 0.2) * 0.9);
+        if (age > 0.18) continue;
+        const al = (1 - age / 0.18) * 0.28 * clamp(spd / 22, 0.3, 1);
+        g.strokeStyle = `rgba(255, 255, 255, ${al})`;
+        g.lineWidth = r * (0.4 + (1 - age / 0.18) * 0.9);
         g.lineCap = 'round';
         g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(c.x, c.y); g.stroke();
       }
       g.restore();
     }
-
-    const glow = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 3.2);
-    glow.addColorStop(0, 'rgba(240, 252, 255, 0.26)');
-    glow.addColorStop(0.45, 'rgba(200, 240, 255, 0.09)');
-    glow.addColorStop(1, 'rgba(200, 240, 255, 0)');
-    g.fillStyle = glow;
-    g.beginPath(); g.arc(p.x, p.y, r * 3.2, 0, Math.PI * 2); g.fill();
 
     const ang = spd > 0.5 ? Math.atan2(-b.vy, b.vx) : -Math.PI / 2;
     const stretch = clamp(spd / 50, 0, 1);
@@ -769,13 +760,11 @@ export class Renderer {
     g.translate(p.x, p.y);
     g.rotate(ang);
 
-    const skirtLen = r * (2.0 + stretch * 1.0);
+    const skirtLen = r * (1.95 + stretch * 1.0);
     const skirtW = r * 1.5;
-    const sk = g.createLinearGradient(-skirtLen, 0, r * 0.5, 0);
-    sk.addColorStop(0, 'rgba(255,255,255,0.22)');
-    sk.addColorStop(0.5, 'rgba(255,255,255,0.72)');
-    sk.addColorStop(1, 'rgba(255,255,255,0.99)');
-    g.fillStyle = sk;
+    g.fillStyle = 'rgba(255, 255, 255, 0.98)';
+    g.strokeStyle = 'rgba(96, 128, 152, 0.7)';
+    g.lineWidth = Math.max(0.5, r * 0.16);
     g.beginPath();
     g.moveTo(r * 0.15, -skirtW * 0.33);
     g.quadraticCurveTo(-skirtLen * 0.5, -skirtW * 0.72, -skirtLen, -skirtW);
@@ -783,8 +772,9 @@ export class Renderer {
     g.quadraticCurveTo(-skirtLen * 0.5, skirtW * 0.72, r * 0.15, skirtW * 0.33);
     g.closePath();
     g.fill();
+    g.stroke();
 
-    g.strokeStyle = 'rgba(160, 195, 220, 0.4)';
+    g.strokeStyle = 'rgba(128, 158, 182, 0.55)';
     g.lineWidth = Math.max(0.4, r * 0.07);
     for (let i = -3; i <= 3; i++) {
       g.beginPath();
@@ -793,15 +783,13 @@ export class Renderer {
       g.stroke();
     }
 
-    const cork = g.createRadialGradient(r * 0.2, -r * 0.22, 0, r * 0.05, 0, r * 1.35);
-    cork.addColorStop(0, '#ffffff');
-    cork.addColorStop(0.55, '#f4ebdd');
-    cork.addColorStop(1, '#c8b096');
-    g.fillStyle = cork;
-    g.beginPath(); g.arc(0, 0, r * 0.88, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = 'rgba(255,255,255,0.8)';
-    g.lineWidth = Math.max(0.5, r * 0.11);
-    g.beginPath(); g.arc(0, 0, r * 0.88, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#ffffff';
+    g.strokeStyle = 'rgba(96, 128, 152, 0.85)';
+    g.lineWidth = Math.max(0.6, r * 0.16);
+    g.beginPath();
+    g.arc(0, 0, r * 0.9, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
 
     g.restore();
   }
@@ -811,31 +799,31 @@ export class Renderer {
     if (!h) return;
     const p = this.project(h.x, 0, h.z || 0);
     const rx = Math.max(10, p.s * 0.4);
-    const col = h.out ? '255, 96, 110' : '160, 246, 232';
+    const col = h.out ? '226, 62, 78' : '18, 152, 118';
     g.save();
-    g.strokeStyle = `rgba(${col}, 0.9)`;
-    g.lineWidth = Math.max(1.1, p.s * 0.012);
+    g.strokeStyle = `rgba(${col}, 0.85)`;
+    g.lineWidth = Math.max(1.2, p.s * 0.012);
     g.setLineDash([Math.max(3, p.s * 0.05), Math.max(3, p.s * 0.045)]);
     g.lineDashOffset = -this.time * 26;
     g.beginPath();
     g.ellipse(p.x, p.y, rx, rx * 0.34, 0, 0, Math.PI * 2);
     g.stroke();
     g.setLineDash([]);
-    g.fillStyle = `rgba(${col}, 0.22)`;
+    g.fillStyle = `rgba(${col}, 0.16)`;
     g.beginPath();
-    g.ellipse(p.x, p.y, rx * 0.4, rx * 0.14, 0, 0, Math.PI * 2);
+    g.ellipse(p.x, p.y, rx * 0.42, rx * 0.14, 0, 0, Math.PI * 2);
     g.fill();
     g.restore();
   }
 
   spawnHitFx(x, y, z, side, power) {
-    this.fx.push({ type: 'ring', x, y, z, t: 0, life: 0.4, color: side < 0 ? '255, 150, 105' : '95, 225, 255', r1: 0.9 + power * 0.7 });
-    this.fx.push({ type: 'burst', x, y, z, t: 0, life: 0.28, color: side < 0 ? '255, 200, 165' : '190, 245, 255', n: 9, power });
-    if (power > 0.78) this.shake = Math.max(this.shake, 4.2);
+    this.fx.push({ type: 'ring', x, y, z, t: 0, life: 0.4, color: side < 0 ? '232, 96, 56' : '30, 140, 208', r1: 0.9 + power * 0.7 });
+    this.fx.push({ type: 'burst', x, y, z, t: 0, life: 0.28, color: side < 0 ? '255, 176, 140' : '150, 214, 248', n: 9, power });
+    if (power > 0.78) this.shake = Math.max(this.shake, 4);
   }
 
   spawnLandFx(x, z, scorer) {
-    this.fx.push({ type: 'land', x, z, t: 0, life: 0.55, color: scorer < 0 ? '255, 150, 105' : '95, 225, 255' });
+    this.fx.push({ type: 'land', x, z, t: 0, life: 0.55, color: scorer < 0 ? '232, 96, 56' : '30, 140, 208' });
   }
 
   spawnText(text, sub, color) {
@@ -857,23 +845,21 @@ export class Renderer {
         if (f.type === 'ring') {
           const r = lerp(0.16, f.r1, k) * p.s;
           g.save();
-          g.globalCompositeOperation = 'lighter';
-          g.strokeStyle = `rgba(${f.color}, ${(1 - k) * 0.7})`;
-          g.lineWidth = Math.max(1.4, p.s * 0.03 * (1 - k));
+          g.strokeStyle = `rgba(${f.color}, ${(1 - k) * 0.75})`;
+          g.lineWidth = Math.max(1.5, p.s * 0.032 * (1 - k));
           g.beginPath();
           g.ellipse(p.x, p.y, r, r * 0.75, 0, 0, Math.PI * 2);
           g.stroke();
           g.restore();
         } else {
           g.save();
-          g.globalCompositeOperation = 'lighter';
           for (let i = 0; i < f.n; i++) {
             const a = (i / f.n) * Math.PI * 2 + 0.42;
             const d = lerp(0.06, 0.7 + f.power * 0.45, k);
             const q = this.project(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.75, f.z);
-            g.fillStyle = `rgba(${f.color}, ${(1 - k) * 0.85})`;
+            g.fillStyle = `rgba(${f.color}, ${(1 - k) * 0.8})`;
             g.beginPath();
-            g.arc(q.x, q.y, Math.max(0.8, q.s * 0.022 * (1 - k)), 0, Math.PI * 2);
+            g.arc(q.x, q.y, Math.max(0.9, q.s * 0.024 * (1 - k)), 0, Math.PI * 2);
             g.fill();
           }
           g.restore();
@@ -882,9 +868,8 @@ export class Renderer {
         const p = this.project(f.x, 0, f.z);
         const r = lerp(0.08, 0.95, k) * p.s;
         g.save();
-        g.globalCompositeOperation = 'lighter';
-        g.strokeStyle = `rgba(${f.color}, ${(1 - k) * 0.55})`;
-        g.lineWidth = Math.max(1.2, p.s * 0.02 * (1 - k));
+        g.strokeStyle = `rgba(${f.color}, ${(1 - k) * 0.6})`;
+        g.lineWidth = Math.max(1.3, p.s * 0.022 * (1 - k));
         g.beginPath();
         g.ellipse(p.x, p.y, r, r * 0.34, 0, 0, Math.PI * 2);
         g.stroke();
@@ -900,13 +885,17 @@ export class Renderer {
         g.textAlign = 'center';
         g.textBaseline = 'middle';
         g.font = `800 ${size}px system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif`;
-        g.fillStyle = f.color || '#fff';
-        g.shadowColor = 'rgba(0,0,0,0.55)';
-        g.shadowBlur = size * 0.4;
+        g.lineWidth = size * 0.16;
+        g.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+        g.strokeText(f.text, 0, 0);
+        g.fillStyle = f.color || THEME.ink;
         g.fillText(f.text, 0, 0);
         if (f.sub) {
-          g.font = `600 ${size * 0.24}px system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif`;
-          g.fillStyle = 'rgba(238, 245, 255, 0.8)';
+          g.font = `700 ${size * 0.24}px system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif`;
+          g.lineWidth = size * 0.06;
+          g.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+          g.strokeText(f.sub, 0, size * 0.56);
+          g.fillStyle = 'rgba(28, 48, 68, 0.85)';
           g.fillText(f.sub, 0, size * 0.56);
         }
         g.restore();
@@ -922,8 +911,9 @@ export class Renderer {
       g.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
     }
 
+    g.fillStyle = '#e6eef6';
+    g.fillRect(0, 0, this.W, this.H);
     if (this.bg) g.drawImage(this.bg, 0, 0, this.W, this.H);
-    else { g.fillStyle = '#0a1220'; g.fillRect(0, 0, this.W, this.H); }
 
     this.drawCourt(g);
     this.drawLandingHint(g);
@@ -943,7 +933,7 @@ export class Renderer {
     this.drawFx(g);
 
     if (this.flash > 0.01) {
-      g.fillStyle = `rgba(255,255,255,${this.flash * 0.13})`;
+      g.fillStyle = `rgba(255,255,255,${this.flash * 0.3})`;
       g.fillRect(0, 0, this.W, this.H);
     }
 
