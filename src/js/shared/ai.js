@@ -3,8 +3,8 @@ import { traceAtHeight, predictLanding3 } from './physics.js';
 
 export const DIFFICULTY = {
   easy: { react: 0.24, speed: 0.82, err: 1.05, aggr: 0.16, whiff: 0.16, aim: 1.30, lane: 0.40, label: '轻松' },
-  normal: { react: 0.15, speed: 0.95, err: 0.70, aggr: 0.38, whiff: 0.105, aim: 0.95, lane: 0.55, label: '普通' },
-  hard: { react: 0.08, speed: 1.03, err: 0.40, aggr: 0.66, whiff: 0.055, aim: 0.55, lane: 0.70, label: '困难' },
+  normal: { react: 0.18, speed: 0.93, err: 0.95, aggr: 0.38, whiff: 0.16, aim: 1.05, lane: 0.55, label: '普通' },
+  hard: { react: 0.10, speed: 1.01, err: 0.60, aggr: 0.66, whiff: 0.09, aim: 0.65, lane: 0.70, label: '困难' },
   pro: { react: 0.04, speed: 1.09, err: 0.15, aggr: 0.84, whiff: 0.012, aim: 0.28, lane: 0.85, label: '职业' },
 };
 

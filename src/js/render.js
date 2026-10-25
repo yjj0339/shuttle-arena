@@ -9,15 +9,15 @@ const THEME = {
   skyFloor: '#c6d5e3',
   crowdBase: 'rgba(206, 219, 232, 0.92)',
   crowdFade: 'rgba(242, 246, 250, 0.92)',
-  apronFar: '#b7c8d7',
-  apronNear: '#a3b6c8',
-  courtFar: '#43a56c',
-  courtMid: '#4cb273',
-  courtNear: '#55bb7c',
-  floorFar: '#c9d7e4',
-  floorNear: '#b4c5d6',
-  netFill: 'rgba(252, 254, 255, 0.5)',
-  netLine: 'rgba(112, 142, 168, 0.45)',
+  apronFar: '#a9bccd',
+  apronNear: '#93a8bc',
+  courtFar: '#3d9a63',
+  courtMid: '#46a86c',
+  courtNear: '#4fb375',
+  floorFar: '#c3d3e1',
+  floorNear: '#aabfd2',
+  netFill: 'rgba(252, 254, 255, 0.7)',
+  netLine: 'rgba(92, 122, 148, 0.62)',
   netTape: '#ffffff',
   shadow: '36, 64, 92',
   line: 'rgba(255, 255, 255, 0.96)',
@@ -110,21 +110,28 @@ export class Renderer {
     const minN = Math.min(...ratios);
     const maxN = Math.max(...ratios);
     const span = Math.max(maxN - minN, 0.001);
-    this.focal = Math.min(w * 0.90, h * 1.62) / span;
-    this.cx = w / 2 - ((minN + maxN) / 2) * this.focal;
+    this.xScale = 0.92;
+    this.focal = (w * 0.94) / (span * this.xScale);
+    this.cx = w / 2 - ((minN + maxN) / 2) * this.focal * this.xScale;
 
-    const t1 = this.rawProject(0, 0, -COURT.HALF_WIDTH - 0.6);
-    const t2 = this.rawProject(0, 0, COURT.HALF_WIDTH + 0.6);
-    let yTop = -t1.vy * (this.focal / t1.d);
-    let yBot = -t2.vy * (this.focal / t2.d);
-    const maxH = h * 0.60;
-    if (yBot - yTop > maxH) {
-      this.focal *= maxH / (yBot - yTop);
-      this.cx = w / 2 - ((minN + maxN) / 2) * this.focal;
-      yTop = -t1.vy * (this.focal / t1.d);
-      yBot = -t2.vy * (this.focal / t2.d);
+    const EXT = COURT.HALF_WIDTH + 0.65;
+    const LEXT = COURT.HALF_LENGTH + 0.65;
+    const ySpan = () => {
+      const ys = [[LEXT, -EXT], [LEXT, EXT], [-LEXT, -EXT], [-LEXT, EXT]]
+        .map(([x, z]) => {
+          const r = this.rawProject(x, 0, z);
+          return -(r.vy * (this.focal / r.d));
+        });
+      return { top: Math.min(...ys), bot: Math.max(...ys) };
+    };
+    let spanY = ySpan();
+    const maxH = h * 0.94;
+    if (spanY.bot - spanY.top > maxH) {
+      this.focal *= maxH / (spanY.bot - spanY.top);
+      this.cx = w / 2 - ((minN + maxN) / 2) * this.focal * this.xScale;
+      spanY = ySpan();
     }
-    this.cy = h * 0.565 - (yTop + yBot) / 2;
+    this.cy = h * 0.52 - (spanY.top + spanY.bot) / 2;
 
     this.buildBackground();
   }
@@ -144,7 +151,7 @@ export class Renderer {
     const p = this.rawProject(x, y, z);
     const k = this.focal / p.d;
     return {
-      x: this.cx + p.vx * k,
+      x: this.cx + p.vx * k * this.xScale,
       y: this.cy - p.vy * k,
       s: k,
       d: p.d,
@@ -190,9 +197,9 @@ export class Renderer {
     }
 
     g.save();
-    g.filter = `blur(${Math.max(0.7, h * 0.0016).toFixed(2)}px)`;
+    g.filter = `blur(${Math.max(1.2, h * 0.0030).toFixed(2)}px)`;
     const unit = Math.max(1.7, Math.min(3.4, w / 520));
-    const total = Math.round(w * 0.62);
+    const total = Math.round(w * 0.34);
     for (let i = 0; i < total; i++) {
       const px = rnd() * w;
       const py = seatTop + rnd() * (seatBot - seatTop);
@@ -205,7 +212,7 @@ export class Renderer {
         : tint > 0.78 ? '70, 168, 208'
           : tint > 0.58 ? '96, 132, 188'
             : tint > 0.3 ? '120, 144, 170' : '84, 104, 128';
-      g.fillStyle = `rgba(${col}, ${0.26 + depth * 0.4 + rnd() * 0.14})`;
+      g.fillStyle = `rgba(${col}, ${0.16 + depth * 0.26 + rnd() * 0.1})`;
       rr(g, px, py - bh, bw, bh, bw * 0.45);
       g.fill();
       g.beginPath();
@@ -220,6 +227,15 @@ export class Renderer {
     fade.addColorStop(1, 'rgba(243, 248, 252, 0)');
     g.fillStyle = fade;
     g.fillRect(0, seatTop, w, seatBot - seatTop);
+
+    g.fillStyle = 'rgba(238, 244, 250, 0.95)';
+    g.fillRect(0, 0, w, h * 0.030);
+    g.fillStyle = 'rgba(196, 212, 228, 0.9)';
+    for (let x = 0; x < w; x += Math.max(52, h * 0.11)) {
+      g.fillRect(x, h * 0.012, Math.max(24, h * 0.05), h * 0.008);
+    }
+    g.fillStyle = 'rgba(214, 226, 238, 0.9)';
+    g.fillRect(0, h * 0.030, w, Math.max(1, h * 0.002));
 
     const trussY = h * 0.052;
     g.strokeStyle = 'rgba(150, 178, 202, 0.5)';
@@ -288,8 +304,8 @@ export class Renderer {
   drawCourt(g) {
     const HW = COURT.HALF_WIDTH;
     const HL = COURT.HALF_LENGTH;
-    const ohw = HW + 1.05;
-    const ohl = HL + 1.05;
+    const ohw = HW + 0.62;
+    const ohl = HL + 0.62;
     const p = (x, z) => this.project(x, 0, z);
 
     const floorG = g.createLinearGradient(0, p(0, -ohw).y, 0, p(0, ohw).y);
@@ -300,7 +316,7 @@ export class Renderer {
     const apronG = g.createLinearGradient(0, p(0, -HW - 0.9).y, 0, p(0, HW + 0.9).y);
     apronG.addColorStop(0, THEME.apronFar);
     apronG.addColorStop(1, THEME.apronNear);
-    this.poly(g, [p(-ohl, -HW - 0.95), p(ohl, -HW - 0.95), p(ohl, HW + 0.95), p(-ohl, HW + 0.95)], apronG);
+    this.poly(g, [p(-ohl, -HW - 0.6), p(ohl, -HW - 0.6), p(ohl, HW + 0.6), p(-ohl, HW + 0.6)], apronG);
 
     const courtG = g.createLinearGradient(0, p(0, -HW).y, 0, p(0, HW).y);
     courtG.addColorStop(0, THEME.courtFar);
@@ -309,17 +325,39 @@ export class Renderer {
     this.poly(g, [p(-HL, -HW), p(HL, -HW), p(HL, HW), p(-HL, HW)], courtG);
 
     const sheen = g.createLinearGradient(0, p(0, -HW).y, 0, p(0, HW).y);
-    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
-    sheen.addColorStop(0.45, 'rgba(255, 255, 255, 0.05)');
+    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+    sheen.addColorStop(0.45, 'rgba(255, 255, 255, 0.06)');
     sheen.addColorStop(1, 'rgba(255, 255, 255, 0)');
     this.poly(g, [p(-HL, -HW), p(HL, -HW), p(HL, HW), p(-HL, HW)], sheen);
+
+    g.save();
+    g.beginPath();
+    const cA = p(-HL, -HW), cB = p(HL, -HW), cC = p(HL, HW), cD = p(-HL, HW);
+    g.moveTo(cA.x, cA.y); g.lineTo(cB.x, cB.y); g.lineTo(cC.x, cC.y); g.lineTo(cD.x, cD.y);
+    g.closePath();
+    g.clip();
+    const ctr = p(0, 0);
+    const rad = g.createRadialGradient(ctr.x, ctr.y, 0, ctr.x, ctr.y, this.W * 0.55);
+    rad.addColorStop(0, 'rgba(255, 255, 255, 0.16)');
+    rad.addColorStop(0.5, 'rgba(255, 255, 255, 0.04)');
+    rad.addColorStop(1, 'rgba(18, 74, 52, 0.20)');
+    g.fillStyle = rad;
+    g.fillRect(0, 0, this.W, this.H);
+    g.restore();
 
     const lineW = (x) => Math.max(1.2, this.project(x, 0, 0).s * 0.05);
     const line = (x1, z1, x2, z2, strong) => {
       const a = p(x1, z1);
       const b = p(x2, z2);
+      const lw = strong ? lineW(x1) * 1.2 : lineW(x1) * 0.9;
+      g.strokeStyle = 'rgba(24, 62, 44, 0.18)';
+      g.lineWidth = lw * 1.6;
+      g.beginPath();
+      g.moveTo(a.x + lw * 0.35, a.y + lw * 0.5);
+      g.lineTo(b.x + lw * 0.35, b.y + lw * 0.5);
+      g.stroke();
       g.strokeStyle = strong ? THEME.line : THEME.lineSoft;
-      g.lineWidth = strong ? lineW(x1) * 1.2 : lineW(x1) * 0.9;
+      g.lineWidth = lw;
       g.beginPath();
       g.moveTo(a.x, a.y);
       g.lineTo(b.x, b.y);
@@ -333,6 +371,30 @@ export class Renderer {
     line(-COURT.SHORT_SERVICE, -HW, -COURT.SHORT_SERVICE, HW, false);
     line(COURT.SHORT_SERVICE, -HW, COURT.SHORT_SERVICE, HW, false);
     line(-COURT.SHORT_SERVICE, 0, COURT.SHORT_SERVICE, 0, false);
+
+    g.save();
+    g.beginPath();
+    const vA = p(-HL, -HW), vB = p(HL, -HW), vC = p(HL, HW), vD = p(-HL, HW);
+    g.moveTo(vA.x, vA.y); g.lineTo(vB.x, vB.y); g.lineTo(vC.x, vC.y); g.lineTo(vD.x, vD.y);
+    g.closePath();
+    g.clip();
+    for (const lz of [-1.7, 1.7]) {
+      const a = p(-HL, lz - 0.85);
+      const b = p(HL, lz + 0.85);
+      const beam = g.createLinearGradient(a.x, a.y, p(HL, lz - 0.85).x, p(HL, lz - 0.85).y);
+      beam.addColorStop(0, 'rgba(255, 255, 255, 0.0)');
+      beam.addColorStop(0.5, 'rgba(255, 255, 255, 0.10)');
+      beam.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
+      g.fillStyle = beam;
+      g.beginPath();
+      g.moveTo(p(-HL, lz - 0.85).x, p(-HL, lz - 0.85).y);
+      g.lineTo(p(HL, lz - 0.85).x, p(HL, lz - 0.85).y);
+      g.lineTo(p(HL, lz + 0.85).x, p(HL, lz + 0.85).y);
+      g.lineTo(p(-HL, lz + 0.85).x, p(-HL, lz + 0.85).y);
+      g.closePath();
+      g.fill();
+    }
+    g.restore();
 
     const poolC = p(0, 0);
     const poolR = this.W * 0.32;
@@ -440,8 +502,8 @@ export class Renderer {
     const rx = radius * p.s * (1.35 - k * 0.35);
     const ry = rx * 0.34;
     const grd = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, rx);
-    grd.addColorStop(0, `rgba(${THEME.shadow}, ${0.34 * alpha * k})`);
-    grd.addColorStop(0.6, `rgba(${THEME.shadow}, ${0.16 * alpha * k})`);
+    grd.addColorStop(0, `rgba(${THEME.shadow}, ${0.46 * alpha * k})`);
+    grd.addColorStop(0.6, `rgba(${THEME.shadow}, ${0.2 * alpha * k})`);
     grd.addColorStop(1, `rgba(${THEME.shadow}, 0)`);
     g.fillStyle = grd;
     g.beginPath();
@@ -452,272 +514,341 @@ export class Renderer {
   drawPlayer(g, p, side, isLocal, dt) {
     const base = this.project(p.x, p.y, p.z);
     const foot = this.project(p.x, 0, p.z);
-    const s = base.s;
+    const s = base.s * 1.04;
     if (s < 0.4) return;
 
     const dir = side < 0 ? 1 : -1;
     const kit = side < 0
-      ? { shirt: '#f2663c', shirt2: '#d14420', trim: '#ffe4d8', skin: '#f2c49d', skin2: '#dcab84', hair: '#2a1a14', shoe: '#ffffff' }
-      : { shirt: '#2f93d8', shirt2: '#146ba8', trim: '#dcf1ff', skin: '#eec09a', skin2: '#d3a077', hair: '#1a2735', shoe: '#ffffff' };
+      ? { shirt: '#f2663c', shirtDark: '#c94523', shirtLite: '#ff8a63', trim: '#ffffff', skin: '#f4c9a4', skinDark: '#d9a87f', hair: '#2b1a15', shoe: '#ffffff' }
+      : { shirt: '#2f93d8', shirtDark: '#12639b', shirtLite: '#63b8ef', trim: '#ffffff', skin: '#f0c39c', skinDark: '#cf9c74', hair: '#1a2735', shoe: '#ffffff' };
 
     const speed = Math.hypot(p.vx, p.vz);
-    p.runPhase = (p.runPhase || 0) + speed * dt * 5.6;
+    p.runPhase = (p.runPhase || 0) + speed * dt * 5.8;
     const moving = speed > 0.4;
     const airborne = p.y > 0.06;
     const H = 1.78 * s;
 
-    this.drawShadow(g, p.x, p.z, 0.55, 1, p.y);
+    this.drawShadow(g, p.x, p.z, 0.52, 1.15, p.y);
 
     g.save();
     g.translate(base.x, base.y);
-    if (Math.abs(p.vz) > 0.3) g.rotate(clamp(-p.vz * 0.035, -0.08, 0.08));
+    if (Math.abs(p.vz) > 0.3) g.rotate(clamp(-p.vz * 0.04, -0.09, 0.09));
 
-    const hipY = -H * 0.468;
-    const shoulderY = -H * 0.812;
-    const headR = H * 0.088;
-    const headCY = -H * 0.878;
+    const hipY = -H * 0.44;
+    const shoulderY = -H * 0.775;
+    const headR = H * 0.108;
+    const headCY = -H * 0.875;
+    const torsoW = H * 0.235;
 
-    const lean = p.charging ? dir * 0.075 : (moving ? dir * 0.045 : 0);
-    g.save();
+    const lean = p.charging ? dir * 0.085 : (moving ? dir * 0.05 : 0.01);
     g.rotate(lean);
 
     const legL = moving ? Math.sin(p.runPhase) : 0;
     const legR = moving ? Math.sin(p.runPhase + Math.PI) : 0;
-    const legAmp = moving ? 0.62 : 0.12;
+    const legAmp = moving ? 0.66 : 0.1;
 
-    const drawLeg = (ang, off, col, shoeCol, width) => {
+    const drawLeg = (ang, off, col, dark, width, back) => {
       const hipX = dir * off;
       const swingA = Math.sin(ang * legAmp);
-      const kneeX = hipX + swingA * H * 0.175 * dir + dir * H * 0.012;
-      const kneeY = hipY + H * 0.238;
+      const kneeX = hipX + swingA * H * 0.185 * dir + dir * H * 0.01;
+      const kneeY = hipY + H * 0.225;
       const swing2 = Math.sin(ang * legAmp * 0.45 + 0.5);
-      const footX = kneeX + swing2 * H * 0.155 * dir;
-      const footY = airborne ? hipY + H * 0.315 : -H * 0.010;
+      const footX = kneeX + swing2 * H * 0.15 * dir;
+      const footY = airborne ? hipY + H * 0.30 : -H * 0.012;
+
       g.strokeStyle = col;
       g.lineWidth = width;
       g.lineCap = 'round';
       g.lineJoin = 'round';
       g.beginPath();
       g.moveTo(hipX, hipY);
-      g.lineTo(kneeX, kneeY);
+      g.quadraticCurveTo(hipX + swingA * H * 0.11 * dir, (hipY + kneeY) / 2, kneeX, kneeY);
       g.lineTo(footX, footY);
       g.stroke();
-      g.strokeStyle = 'rgba(255,255,255,0.95)';
-      g.lineWidth = width * 0.7;
+
+      if (!back) {
+        g.strokeStyle = dark;
+        g.lineWidth = width * 0.3;
+        g.beginPath();
+        g.moveTo(hipX - dir * width * 0.22, hipY);
+        g.quadraticCurveTo(hipX + swingA * H * 0.11 * dir - dir * width * 0.22, (hipY + kneeY) / 2, kneeX - dir * width * 0.2, kneeY);
+        g.stroke();
+      }
+
+      g.strokeStyle = '#ffffff';
+      g.lineWidth = width * 0.78;
+      g.lineCap = 'round';
       g.beginPath();
-      g.moveTo(lerp(kneeX, footX, 0.74), lerp(kneeY, footY, 0.74));
+      g.moveTo(lerp(kneeX, footX, 0.7), lerp(kneeY, footY, 0.7));
       g.lineTo(footX, footY);
       g.stroke();
-      g.fillStyle = shoeCol;
+
+      g.fillStyle = back ? '#dde6ee' : kit.shoe;
       g.beginPath();
-      g.ellipse(footX + dir * H * 0.020, footY + H * 0.002, H * 0.052, H * 0.023, 0, 0, Math.PI * 2);
+      g.ellipse(footX + dir * H * 0.022, footY + H * 0.002, H * 0.056, H * 0.026, 0, 0, Math.PI * 2);
       g.fill();
-      g.fillStyle = side < 0 ? 'rgba(209,68,32,0.9)' : 'rgba(20,107,168,0.9)';
+      g.fillStyle = side < 0 ? '#d24a22' : '#0f5d92';
       g.beginPath();
-      g.ellipse(footX + dir * H * 0.020, footY + H * 0.014, H * 0.052, H * 0.008, 0, 0, Math.PI * 2);
+      g.ellipse(footX + dir * H * 0.022, footY + H * 0.018, H * 0.056, H * 0.009, 0, 0, Math.PI * 2);
       g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.9)';
+      g.fillRect(footX - H * 0.012, footY - H * 0.012, H * 0.05, H * 0.007);
     };
 
-    drawLeg(legL * 0.9, H * 0.052, kit.skin2, '#e9eef4', H * 0.079);
+    drawLeg(legL * 0.9, H * 0.056, kit.skinDark, 'rgba(150,110,80,0.5)', H * 0.086, true);
 
-    const offArmAng = 2.0 - (moving ? Math.sin(p.runPhase + 1.1) * 0.35 : 0.05);
-    const offShX = -dir * H * 0.052;
+    const offArmAng = 1.95 - (moving ? Math.sin(p.runPhase + 1.1) * 0.4 : 0.05);
+    const offShX = -dir * H * 0.058;
     const offElbowX = offShX + Math.cos(offArmAng) * H * 0.115 * -dir;
-    const offElbowY = shoulderY + Math.sin(offArmAng) * H * 0.115 + H * 0.045;
-    const offHandX = offElbowX + Math.cos(offArmAng + 0.5) * H * 0.105 * -dir;
-    const offHandY = offElbowY + Math.sin(offArmAng + 0.5) * H * 0.105;
-    g.strokeStyle = kit.skin2;
-    g.lineWidth = H * 0.046;
+    const offElbowY = shoulderY + Math.sin(offArmAng) * H * 0.115 + H * 0.05;
+    const offHandX = offElbowX + Math.cos(offArmAng + 0.55) * H * 0.1 * -dir;
+    const offHandY = offElbowY + Math.sin(offArmAng + 0.55) * H * 0.1;
+    g.strokeStyle = kit.skinDark;
+    g.lineWidth = H * 0.05;
     g.lineCap = 'round';
     g.beginPath();
-    g.moveTo(offShX, shoulderY + H * 0.022);
+    g.moveTo(offShX, shoulderY + H * 0.025);
     g.quadraticCurveTo(offElbowX, offElbowY, offHandX, offHandY);
     g.stroke();
 
-    const torsoW = H * 0.212;
-    const torsoTop = shoulderY - H * 0.012;
-    const torsoBot = hipY + H * 0.028;
-
-    g.fillStyle = side < 0 ? 'rgba(38, 52, 70, 0.95)' : 'rgba(28, 44, 62, 0.95)';
+    g.fillStyle = 'rgba(24, 44, 66, 0.92)';
     g.beginPath();
-    g.moveTo(-torsoW * 0.47, hipY - H * 0.012);
-    g.lineTo(torsoW * 0.47, hipY - H * 0.012);
-    g.lineTo(torsoW * 0.50, hipY + H * 0.115);
-    g.lineTo(torsoW * 0.14, hipY + H * 0.128);
-    g.lineTo(-torsoW * 0.14, hipY + H * 0.128);
-    g.lineTo(-torsoW * 0.50, hipY + H * 0.115);
+    g.moveTo(-torsoW * 0.46, hipY - H * 0.03);
+    g.lineTo(torsoW * 0.46, hipY - H * 0.03);
+    g.lineTo(torsoW * 0.49, hipY + H * 0.105);
+    g.lineTo(torsoW * 0.13, hipY + H * 0.118);
+    g.lineTo(-torsoW * 0.13, hipY + H * 0.118);
+    g.lineTo(-torsoW * 0.49, hipY + H * 0.105);
     g.closePath();
     g.fill();
 
-    const bodyG = g.createLinearGradient(-torsoW * 0.5, torsoTop, torsoW * 0.5, torsoBot);
-    bodyG.addColorStop(0, kit.shirt);
-    bodyG.addColorStop(0.62, kit.shirt);
-    bodyG.addColorStop(1, kit.shirt2);
+    const torsoTop = shoulderY - H * 0.018;
+    const torsoBot = hipY + H * 0.012;
+    const bodyG = g.createLinearGradient(-torsoW * 0.5, 0, torsoW * 0.5, 0);
+    bodyG.addColorStop(0, kit.shirtDark);
+    bodyG.addColorStop(0.34, kit.shirt);
+    bodyG.addColorStop(0.72, kit.shirtLite);
+    bodyG.addColorStop(1, kit.shirtLite);
     g.fillStyle = bodyG;
     g.beginPath();
-    g.moveTo(-torsoW * 0.44, torsoTop + H * 0.014);
-    g.quadraticCurveTo(0, torsoTop - H * 0.016, torsoW * 0.44, torsoTop + H * 0.014);
-    g.lineTo(torsoW * 0.47, torsoBot - H * 0.045);
-    g.quadraticCurveTo(torsoW * 0.47, torsoBot, torsoW * 0.30, torsoBot);
-    g.lineTo(-torsoW * 0.30, torsoBot);
-    g.quadraticCurveTo(-torsoW * 0.47, torsoBot, -torsoW * 0.47, torsoBot - H * 0.045);
+    g.moveTo(-torsoW * 0.43, torsoTop + H * 0.018);
+    g.quadraticCurveTo(0, torsoTop - H * 0.02, torsoW * 0.43, torsoTop + H * 0.018);
+    g.lineTo(torsoW * 0.46, torsoBot - H * 0.03);
+    g.quadraticCurveTo(torsoW * 0.46, torsoBot, torsoW * 0.3, torsoBot);
+    g.lineTo(-torsoW * 0.3, torsoBot);
+    g.quadraticCurveTo(-torsoW * 0.46, torsoBot, -torsoW * 0.46, torsoBot - H * 0.03);
     g.closePath();
     g.fill();
 
-    g.fillStyle = 'rgba(255,255,255,0.2)';
+    g.fillStyle = 'rgba(255,255,255,0.22)';
     g.beginPath();
-    g.moveTo(dir * torsoW * 0.12, torsoTop + H * 0.01);
-    g.lineTo(dir * torsoW * 0.46, torsoTop + H * 0.02);
-    g.lineTo(dir * torsoW * 0.44, torsoBot - H * 0.02);
-    g.lineTo(dir * torsoW * 0.16, torsoBot - H * 0.02);
+    g.moveTo(dir * torsoW * 0.1, torsoTop + H * 0.02);
+    g.lineTo(dir * torsoW * 0.4, torsoTop + H * 0.03);
+    g.lineTo(dir * torsoW * 0.36, torsoBot - H * 0.03);
+    g.lineTo(dir * torsoW * 0.12, torsoBot - H * 0.03);
     g.closePath();
     g.fill();
 
-    drawLeg(legR * 0.9, -H * 0.052, kit.skin, kit.shoe, H * 0.083);
+    g.strokeStyle = 'rgba(255,255,255,0.85)';
+    g.lineWidth = H * 0.009;
+    g.beginPath();
+    g.moveTo(-torsoW * 0.4, torsoTop + H * 0.055);
+    g.quadraticCurveTo(0, torsoTop + H * 0.075, torsoW * 0.4, torsoTop + H * 0.05);
+    g.stroke();
+
+    g.fillStyle = 'rgba(255,255,255,0.92)';
+    g.fillRect(-torsoW * 0.46, torsoBot - H * 0.055, torsoW * 0.92, H * 0.013);
+
+    drawLeg(legR * 0.9, -H * 0.056, kit.skin, kit.skinDark, H * 0.09, false);
 
     const swing = p.swingAnim;
     const charge = p.charge;
-    const IDLE = [0.62, 0.20, -0.34];
+    const IDLE = [0.6, 0.16, -0.36];
     let upA, foreA, rackA;
     if (swing > 0) {
       const t = 1 - swing;
       const hitA = p.lastKind === 'smash' || p.lastKind === 'drive'
-        ? [-1.15, -0.55, -1.35]
-        : [-0.55, -0.30, -1.05];
+        ? [-1.2, -0.6, -1.4]
+        : [-0.6, -0.32, -1.05];
       const e = t * t * (3 - 2 * t);
       upA = lerp(hitA[0], IDLE[0], e);
       foreA = lerp(hitA[1], IDLE[1], e);
       rackA = lerp(hitA[2], IDLE[2], e);
     } else if (p.charging) {
-      upA = lerp(IDLE[0], -0.30, charge);
-      foreA = lerp(IDLE[1], -0.95, charge);
-      rackA = lerp(IDLE[2], -1.55, charge);
+      upA = lerp(IDLE[0], -0.34, charge);
+      foreA = lerp(IDLE[1], -0.98, charge);
+      rackA = lerp(IDLE[2], -1.58, charge);
     } else {
       upA = IDLE[0]; foreA = IDLE[1]; rackA = IDLE[2];
     }
 
-    const shX = dir * H * 0.058;
-    const shY = shoulderY + H * 0.012;
-    const elbowX = shX + Math.cos(upA) * H * 0.150 * dir;
-    const elbowY = shY + Math.sin(upA) * H * 0.150;
+    const shX = dir * H * 0.062;
+    const shY = shoulderY + H * 0.018;
+    const elbowX = shX + Math.cos(upA) * H * 0.152 * dir;
+    const elbowY = shY + Math.sin(upA) * H * 0.152;
     const handX = elbowX + Math.cos(foreA) * H * 0.152 * dir;
     const handY = elbowY + Math.sin(foreA) * H * 0.152;
 
     g.strokeStyle = kit.skin;
-    g.lineWidth = H * 0.058;
+    g.lineWidth = H * 0.062;
     g.lineCap = 'round';
     g.beginPath();
     g.moveTo(shX, shY);
     g.quadraticCurveTo(elbowX, elbowY, handX, handY);
     g.stroke();
 
+    g.strokeStyle = kit.skinDark;
+    g.lineWidth = H * 0.02;
+    g.beginPath();
+    g.moveTo(shX - dir * H * 0.012, shY + H * 0.01);
+    g.quadraticCurveTo(elbowX - dir * H * 0.014, elbowY, handX - dir * H * 0.014, handY);
+    g.stroke();
+
+    g.strokeStyle = side < 0 ? '#ffe2d4' : '#d6eeff';
+    g.lineWidth = H * 0.032;
+    g.lineCap = 'butt';
+    g.beginPath();
+    g.moveTo(lerp(elbowX, handX, 0.8), lerp(elbowY, handY, 0.8));
+    g.lineTo(lerp(elbowX, handX, 0.93), lerp(elbowY, handY, 0.93));
+    g.stroke();
+
     g.fillStyle = kit.skin;
     g.beginPath();
-    g.arc(handX, handY, H * 0.028, 0, Math.PI * 2);
+    g.arc(handX, handY, H * 0.031, 0, Math.PI * 2);
     g.fill();
 
     const racketAng = rackA;
-    const racketLen = H * 0.345;
+    const racketLen = H * 0.34;
     const rBaseX = handX;
     const rBaseY = handY;
     const rcx = rBaseX + Math.cos(racketAng) * racketLen * 0.62 * dir;
     const rcy = rBaseY + Math.sin(racketAng) * racketLen * 0.62;
 
     if (swing > 0.2) {
-      const a = Math.sin((1 - swing) * Math.PI) * 0.45;
+      const a = Math.sin((1 - swing) * Math.PI) * 0.5;
       g.save();
       g.globalAlpha = a;
-      g.strokeStyle = 'rgba(80, 200, 255, 0.95)';
-      g.lineWidth = H * 0.018;
+      g.strokeStyle = 'rgba(64, 196, 255, 0.95)';
+      g.lineWidth = H * 0.02;
       g.lineCap = 'round';
       g.beginPath();
-      g.arc(rBaseX, rBaseY, racketLen * 0.66, racketAng - 0.9 * dir, racketAng + 0.55 * dir, dir < 0);
+      g.arc(rBaseX, rBaseY, racketLen * 0.68, racketAng - 0.95 * dir, racketAng + 0.6 * dir, dir < 0);
       g.stroke();
       g.restore();
     }
 
-    g.strokeStyle = '#37485c';
-    g.lineWidth = H * 0.021;
+    g.strokeStyle = '#2c3d4f';
+    g.lineWidth = H * 0.024;
+    g.lineCap = 'round';
     g.beginPath();
     g.moveTo(rBaseX, rBaseY);
-    g.lineTo(rBaseX + Math.cos(racketAng) * racketLen * 0.4 * dir, rBaseY + Math.sin(racketAng) * racketLen * 0.4);
+    g.lineTo(rBaseX + Math.cos(racketAng) * racketLen * 0.38 * dir, rBaseY + Math.sin(racketAng) * racketLen * 0.38);
     g.stroke();
 
     g.save();
     g.translate(rcx, rcy);
     g.rotate(racketAng * dir);
-    g.strokeStyle = 'rgba(52, 74, 96, 0.95)';
-    g.lineWidth = H * 0.016;
+    g.fillStyle = 'rgba(255,255,255,0.42)';
+    g.strokeStyle = 'rgba(44, 66, 88, 0.95)';
+    g.lineWidth = H * 0.017;
     g.beginPath();
-    g.ellipse(0, 0, racketLen * 0.285, racketLen * 0.215, 0, 0, Math.PI * 2);
+    g.ellipse(0, 0, racketLen * 0.29, racketLen * 0.218, 0, 0, Math.PI * 2);
+    g.fill();
     g.stroke();
-    g.strokeStyle = 'rgba(120, 150, 175, 0.6)';
-    g.lineWidth = Math.max(0.5, H * 0.0042);
+    g.strokeStyle = 'rgba(120, 152, 178, 0.62)';
+    g.lineWidth = Math.max(0.5, H * 0.0045);
     for (let i = -2; i <= 2; i++) {
-      const yy = i * racketLen * 0.068;
-      const span = Math.sqrt(Math.max(0, 1 - (yy / (racketLen * 0.215)) ** 2)) * racketLen * 0.285;
+      const yy = i * racketLen * 0.07;
+      const span = Math.sqrt(Math.max(0, 1 - (yy / (racketLen * 0.218)) ** 2)) * racketLen * 0.29;
       g.beginPath(); g.moveTo(-span, yy); g.lineTo(span, yy); g.stroke();
     }
     for (let i = -2; i <= 2; i++) {
-      const xx = i * racketLen * 0.088;
-      const span = Math.sqrt(Math.max(0, 1 - (xx / (racketLen * 0.285)) ** 2)) * racketLen * 0.215;
+      const xx = i * racketLen * 0.09;
+      const span = Math.sqrt(Math.max(0, 1 - (xx / (racketLen * 0.29)) ** 2)) * racketLen * 0.218;
       g.beginPath(); g.moveTo(xx, -span); g.lineTo(xx, span); g.stroke();
     }
     g.restore();
 
-    g.fillStyle = kit.skin2;
-    g.beginPath();
-    g.ellipse(dir * H * 0.008, headCY + headR * 0.72, H * 0.028, H * 0.040, 0, 0, Math.PI * 2);
-    g.fill();
+    g.fillStyle = kit.skinDark;
+    g.fillRect(dir * H * 0.004 - H * 0.03, headCY + headR * 0.6, H * 0.058, H * 0.05);
 
     g.fillStyle = kit.skin;
     g.beginPath();
-    g.ellipse(0, headCY, headR * 0.94, headR, 0, 0, Math.PI * 2);
+    g.ellipse(0, headCY, headR * 0.9, headR, 0, 0, Math.PI * 2);
     g.fill();
 
-    g.fillStyle = kit.skin2;
+    g.fillStyle = kit.skinDark;
     g.beginPath();
-    g.ellipse(-dir * headR * 0.22, headCY + headR * 0.42, headR * 0.62, headR * 0.34, 0, 0, Math.PI * 2);
+    g.ellipse(-dir * headR * 0.3, headCY + headR * 0.3, headR * 0.5, headR * 0.42, 0, 0, Math.PI * 2);
     g.fill();
 
     g.fillStyle = kit.hair;
     g.beginPath();
-    g.ellipse(0, headCY - headR * 0.18, headR * 1.0, headR * 0.92, 0, Math.PI * 0.98, Math.PI * 2.02);
-    g.fill();
-    g.beginPath();
-    g.ellipse(dir * headR * 0.42, headCY - headR * 0.1, headR * 0.62, headR * 0.7, 0, Math.PI * 1.02, Math.PI * 1.98);
-    g.fill();
-    g.beginPath();
-    g.ellipse(-dir * headR * 0.55, headCY + headR * 0.2, headR * 0.38, headR * 0.5, dir * 0.4, 0, Math.PI * 2);
+    g.moveTo(-headR * 1.02, headCY - headR * 0.05);
+    g.quadraticCurveTo(-headR * 1.0, headCY - headR * 1.15, headR * 0.2, headCY - headR * 1.05);
+    g.quadraticCurveTo(headR * 0.85, headCY - headR * 0.95, headR * 0.86, headCY - headR * 0.2);
+    g.quadraticCurveTo(headR * 0.6, headCY - headR * 0.62, -headR * 0.1, headCY - headR * 0.6);
+    g.quadraticCurveTo(-headR * 0.7, headCY - headR * 0.5, -headR * 0.8, headCY + headR * 0.3);
+    g.closePath();
     g.fill();
 
-    g.fillStyle = 'rgba(30, 24, 20, 0.9)';
+    g.fillStyle = 'rgba(255,255,255,0.16)';
     g.beginPath();
-    g.ellipse(dir * headR * 0.4, headCY + headR * 0.08, headR * 0.085, headR * 0.115, 0, 0, Math.PI * 2);
+    g.ellipse(-headR * 0.2, headCY - headR * 0.72, headR * 0.45, headR * 0.16, -0.4, 0, Math.PI * 2);
     g.fill();
+
+    g.fillStyle = 'rgba(232, 244, 255, 0.95)';
+    g.beginPath();
+    g.ellipse(dir * headR * 0.4, headCY - headR * 0.02, headR * 0.26, headR * 0.19, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#20303f';
+    g.beginPath();
+    g.arc(dir * headR * 0.46, headCY - headR * 0.01, headR * 0.115, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.9)';
+    g.beginPath();
+    g.arc(dir * headR * 0.5, headCY - headR * 0.06, headR * 0.04, 0, Math.PI * 2);
+    g.fill();
+
+    g.strokeStyle = kit.hair;
+    g.lineWidth = H * 0.011;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(dir * headR * 0.24, headCY - headR * 0.26);
+    g.lineTo(dir * headR * 0.62, headCY - headR * 0.32);
+    g.stroke();
+
+    g.strokeStyle = 'rgba(150, 90, 72, 0.75)';
+    g.lineWidth = H * 0.009;
+    g.beginPath();
+    g.moveTo(dir * headR * 0.6, headCY + headR * 0.42);
+    g.quadraticCurveTo(dir * headR * 0.72, headCY + headR * 0.5, dir * headR * 0.84, headCY + headR * 0.4);
+    g.stroke();
 
     g.restore();
 
     if (isLocal) {
-      g.strokeStyle = side < 0 ? 'rgba(226, 92, 52, 0.6)' : 'rgba(24, 128, 196, 0.6)';
-      g.lineWidth = Math.max(1, H * 0.008);
-      g.setLineDash([H * 0.045, H * 0.035]);
+      g.strokeStyle = side < 0 ? 'rgba(226, 92, 52, 0.7)' : 'rgba(24, 128, 196, 0.7)';
+      g.lineWidth = Math.max(1.2, H * 0.009);
+      g.setLineDash([H * 0.05, H * 0.038]);
       g.beginPath();
-      g.ellipse(foot.x, foot.y, H * 0.185, H * 0.05, 0, 0, Math.PI * 2);
+      g.ellipse(foot.x, foot.y, H * 0.19, H * 0.055, 0, 0, Math.PI * 2);
       g.stroke();
       g.setLineDash([]);
     }
 
-    g.restore();
-
     if (p.charging) {
-      const y = base.y - H * 1.22;
-      const w = Math.max(30, H * 0.42);
-      const hh = Math.max(4, H * 0.038);
-      const col = p.charge > 0.78 ? '#ef9a2c' : p.charge > 0.45 ? '#16a97f' : '#7f9ab5';
-      g.fillStyle = 'rgba(255, 255, 255, 0.72)';
+      const y = base.y - H * 1.2;
+      const w = Math.max(34, H * 0.44);
+      const hh = Math.max(5, H * 0.042);
+      const col = p.charge > 0.78 ? '#ef9a2c' : p.charge > 0.45 ? '#12a97f' : '#7f9ab5';
+      g.fillStyle = 'rgba(255, 255, 255, 0.86)';
       rr(g, base.x - w / 2, y, w, hh, hh / 2);
       g.fill();
+      g.strokeStyle = 'rgba(24, 48, 76, 0.14)';
+      g.lineWidth = 1;
+      rr(g, base.x - w / 2, y, w, hh, hh / 2);
+      g.stroke();
       g.fillStyle = col;
       if (p.charge > 0.02) {
         rr(g, base.x - w / 2 + 1.5, y + 1.5, Math.max(2, (w - 3) * p.charge), hh - 3, (hh - 3) / 2);
@@ -730,7 +861,7 @@ export class Renderer {
     const p = this.project(b.x, b.y, b.z);
     if (p.d < 0.5) return;
     const spd = Math.hypot(b.vx, b.vy, b.vz);
-    const r = Math.max(2.8, p.s * 0.058);
+    const r = Math.max(3.2, p.s * 0.070);
 
     if (b.active) this.trail.push({ x: p.x, y: p.y, t: this.time, s: p.s });
     if (this.trail.length > 26) this.trail.shift();

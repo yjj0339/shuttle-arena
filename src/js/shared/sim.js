@@ -132,7 +132,7 @@ export class World {
       p.charging = false;
       const c = clamp(typeof inp.charge === 'number' ? inp.charge : p.charge, 0, 1);
       p.charge = 0;
-      this.pending[idxOf(side)] = { charge: c, down: p.inputDown, az: p.inputAz, life: 0.42 };
+      this.pending[idxOf(side)] = { charge: c, down: p.inputDown, az: p.inputAz, life: 0.56 };
       p.lungeT = PLAYER.LUNGE_LEAD;
     }
   }

@@ -24,14 +24,14 @@ export const BALL = {
 
 export const PLAYER = {
   HEIGHT: 1.78,
-  MOVE_SPEED: 5.55,
-  ACCEL: 42,
+  MOVE_SPEED: 6.7,
+  ACCEL: 52,
   DECEL: 34,
   JUMP_V: 4.18,
-  REACH_X: 0.92,
+  REACH_X: 1.12,
   REACH_UP: 2.44,
   REACH_DOWN: 0.08,
-  CHARGE_TIME: 0.70,
+  CHARGE_TIME: 0.58,
   SWING_CD: 0.14,
   LUNGE_LEAD: 0.24,
 };
