@@ -138,6 +138,29 @@ export class UI {
     }
   }
 
+  setGames(gl, gr, index) {
+    const l = $('gamesL');
+    const r = $('gamesR');
+    if (l) [...l.children].forEach((el, i) => el.classList.toggle('on', i < gl));
+    if (r) [...r.children].forEach((el, i) => el.classList.toggle('on', i < gr));
+    const lab = $('setLabel');
+    if (lab && index) lab.textContent = '第 ' + index + ' 局';
+  }
+
+  showBreak(tag, score, sub) {
+    const el = $('breakOverlay');
+    if (!el) return;
+    $('breakTag').textContent = tag;
+    $('breakScore').textContent = score;
+    $('breakSub').textContent = sub;
+    el.classList.remove('hidden');
+  }
+
+  hideBreak() {
+    const el = $('breakOverlay');
+    if (el) el.classList.add('hidden');
+  }
+
   setRally(n) {
     const badge = $('rallyBadge');
     $('rallyNum').textContent = n;
@@ -171,12 +194,14 @@ export class UI {
     $('prLabel').textContent = label;
   }
 
-  showResult(win, score, stats) {
+  showResult(win, score, stats, games) {
     const tag = $('resultTag');
     tag.textContent = win ? 'VICTORY' : 'DEFEAT';
     tag.classList.toggle('lose', !win);
     $('resultTitle').textContent = win ? '胜利' : '惜败';
-    $('resultScore').textContent = `${score[0]} : ${score[1]}`;
+    $('resultScore').textContent = games
+      ? `局分 ${games[0]} : ${games[1]}　·　本局 ${score[0]} : ${score[1]}`
+      : `${score[0]} : ${score[1]}`;
     const st = $('resultStats');
     st.innerHTML = '';
     for (const s of stats) {

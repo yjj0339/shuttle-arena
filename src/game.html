@@ -22,15 +22,21 @@
     <div class="scoreboard">
       <div class="sb-side sb-left" id="sbLeft">
         <div class="sb-name" id="nameL">YOU</div>
-        <div class="sb-score" id="scoreL">0</div>
+        <div class="sb-col">
+          <div class="sb-score" id="scoreL">0</div>
+          <div class="sb-games" id="gamesL"><i></i><i></i></div>
+        </div>
       </div>
       <div class="sb-mid">
         <div class="sb-vs">VS</div>
-        <div class="sb-target">11 分制</div>
+        <div class="sb-target" id="setLabel">第 1 局</div>
       </div>
       <div class="sb-side sb-right" id="sbRight">
+        <div class="sb-col">
+          <div class="sb-score" id="scoreR">0</div>
+          <div class="sb-games" id="gamesR"><i></i><i></i></div>
+        </div>
         <div class="sb-name" id="nameR">RIVAL</div>
-        <div class="sb-score" id="scoreR">0</div>
       </div>
     </div>
 
@@ -46,6 +52,7 @@
     <div class="stat-strip">
       <div class="stat-item"><b id="pingVal">--</b><span>MS</span></div>
       <div class="stat-item"><b id="fpsVal">--</b><span>FPS</span></div>
+      <div class="stat-item"><b id="speedVal">--</b><span>KM/H</span></div>
     </div>
   </div>
 
@@ -197,6 +204,14 @@
         <button class="diff" data-diff="pro"><b>职业</b><span>几乎不失位</span></button>
       </div>
       <button class="btn btn-primary btn-wide" data-act="startSolo">开始对练</button>
+    </div>
+  </div>
+
+  <div id="breakOverlay" class="break-overlay hidden">
+    <div class="break-card">
+      <div class="break-tag" id="breakTag">第 1 局结束</div>
+      <div class="break-score" id="breakScore">11 : 7</div>
+      <div class="break-sub" id="breakSub">下一局即将开始</div>
     </div>
   </div>
 

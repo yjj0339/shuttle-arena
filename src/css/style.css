@@ -400,6 +400,50 @@ html, body {
 }
 .diff.active b { color: #0b8f6a; }
 
+.break-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(238, 244, 250, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: screenIn 0.3s ease;
+}
+.break-card {
+  text-align: center;
+  padding: 26px 46px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(24, 48, 76, 0.10);
+  box-shadow: 0 20px 46px rgba(30, 60, 92, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+.break-tag {
+  font-size: clamp(11px, 1.6vh, 13px);
+  letter-spacing: 0.22em;
+  color: var(--dim-2);
+  font-weight: 700;
+}
+.break-score {
+  font-size: clamp(30px, 7vh, 56px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+.break-sub {
+  font-size: clamp(10px, 1.4vh, 12px);
+  color: var(--mint);
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+
 /* ============ 结算 ============ */
 #screenOver {
   background:
@@ -528,6 +572,22 @@ html, body {
 #sbLeft .sb-name { order: -1; }
 #sbRight .sb-name { order: 1; }
 #sbRight::before { left: auto; right: 0; border-radius: 3px 0 0 3px; background: var(--cyan); }
+
+.sb-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.sb-games { display: flex; gap: 3px; }
+.sb-games i {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(24, 48, 76, 0.16);
+  transition: background 0.2s, transform 0.2s;
+}
+.sb-games i.on { background: currentColor; transform: scale(1.15); }
+#sbLeft .sb-games i.on { background: var(--orange); }
+#sbRight .sb-games i.on { background: var(--cyan); }
 
 .sb-mid {
   padding: 0 clamp(9px, 1.4vw, 15px);

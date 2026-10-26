@@ -84,6 +84,9 @@ function lerpSnapshot(a, b, f) {
       ];
     }),
     s: B.s,
+    gm: B.gm,
+    gi: B.gi,
+    st: B.st,
     ph: B.ph,
     sv: B.sv,
     lh: B.lh,
@@ -101,6 +104,11 @@ function handleEvents(evs) {
       const isMe = ev.side === mySide;
       audio.hit(ev.power, ev.kind);
       if (ev.kind === SHOT.SMASH) state.smashCount++;
+      if (navigator.vibrate) {
+        if (ev.kind === SHOT.SMASH) navigator.vibrate([26, 16, 16]);
+        else if (ev.kind === SHOT.DRIVE) navigator.vibrate(13);
+        else navigator.vibrate(9);
+      }
       const w = state.world;
       const bb = w.ball;
       const spd = Math.hypot(bb.vx, bb.vy, bb.vz);
@@ -129,9 +137,19 @@ function handleEvents(evs) {
       renderer.flash = iWin ? 0.45 : 0.3;
       audio.point(iWin);
       if (iWin && wasSmash) audio.cheer(true);
+      if (navigator.vibrate) navigator.vibrate(iWin ? [18, 40, 26] : 34);
       state.totalRallies++;
+    } else if (ev.type === 'gameEnd') {
+      const iWon = ev.winner === state.localSide;
+      renderer.spawnText(
+        iWon ? '本局拿下' : '本局失守',
+        '局分 ' + ev.games[0] + ' : ' + ev.games[1],
+        iWon ? '#12996f' : '#d83445'
+      );
+      audio.cheer(iWon);
+      ui._gl = -1;
     } else if (ev.type === 'gameover') {
-      endMatch(ev.winner, ev.score);
+      endMatch(ev.winner, ev.score, ev.games);
     } else if (ev.type === 'whiff') {
       if (ev.side === mySide) renderer.shake = Math.max(renderer.shake, 2);
     }
@@ -151,6 +169,28 @@ function updateHud() {
   }
   ui.setRally(w.rally);
   if (w.rally > state.playedRallyMax) state.playedRallyMax = w.rally;
+
+  const gl = w.games ? w.games[0] : 0;
+  const gr = w.games ? w.games[1] : 0;
+  if (ui._gl !== gl || ui._gr !== gr || ui._gi !== w.gameIndex) {
+    ui.setGames(gl, gr, w.gameIndex);
+    ui._gl = gl; ui._gr = gr; ui._gi = w.gameIndex;
+  }
+
+  if (w.phase === 'break') {
+    const left = Math.max(0, Math.ceil(w.phaseTimer || 0));
+    const info = w.lastGameResult;
+    if (info) {
+      const iWon = info.winner === state.localSide;
+      ui.showBreak(
+        '第 ' + info.index + ' 局结束',
+        info.score[0] + ' : ' + info.score[1],
+        (iWon ? '本局拿下' : '本局丢掉') + ' · ' + left + ' 秒后进入第 ' + (info.index + 1) + ' 局'
+      );
+    }
+  } else {
+    ui.hideBreak();
+  }
 
   const showingServe = w.phase === 'serve';
   ui.setServeHint(showingServe ? '按住右侧蓄力 · 松手发球' : '');
@@ -204,6 +244,14 @@ function frame(now) {
     fpsAcc = 0;
     fpsCount = 0;
     ui.setStats(state.net ? state.net.latency : null, fpsVal);
+  const sv = document.getElementById('speedVal');
+  if (sv) {
+    const st = state.world && state.world.stats;
+    const idx = state.localSide < 0 ? 0 : 1;
+    const kmh = st ? Math.round(st.maxSpeed[idx]) : 0;
+    const txt = kmh > 0 ? String(kmh) : '--';
+    if (sv.textContent !== txt) sv.textContent = txt;
+  }
     if (perfHud && !perfHud.classList.contains('hidden')) {
       perfHud.textContent = `fps      ${fpsVal}
 draw     ${perf.draw.toFixed(2)} ms
@@ -388,19 +436,24 @@ function tryFullscreen() {
   }
 }
 
-function endMatch(winner, score) {
+function endMatch(winner, score, games) {
   if (!state.running) return;
   state.running = false;
   input.setEnabled(false);
+  ui.hideBreak();
   const win = winner === state.localSide;
   state.rematchWaiting = false;
+  const w = state.world;
+  const idx = state.localSide < 0 ? 0 : 1;
+  const maxKmh = w.stats ? Math.round(w.stats.maxSpeed[idx]) : 0;
+  const smash = w.stats ? w.stats.smash[idx] : state.smashCount;
   setTimeout(() => {
     if (win) audio.win(); else audio.lose();
     ui.showResult(win, score, [
+      { v: maxKmh ? maxKmh + ' km/h' : '-', k: '最快杀球' },
+      { v: smash, k: '杀球数' },
       { v: state.playedRallyMax, k: '最长回合' },
-      { v: state.totalRallies, k: '总回合' },
-      { v: state.smashCount, k: '杀球数' },
-    ]);
+    ], games);
   }, 900);
 }
 

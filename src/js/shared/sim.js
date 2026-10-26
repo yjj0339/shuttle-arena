@@ -58,6 +58,10 @@ export class World {
       active: false, netHit: false, sideLock: null,
     };
     this.score = [0, 0];
+    this.games = [0, 0];
+    this.gameIndex = 1;
+    this.stats = { smash: [0, 0], maxSpeed: [0, 0] };
+    this.lastGameResult = null;
     this.phase = 'serve';
     this.phaseTimer = 0;
     this.server = SIDE_L;
@@ -196,7 +200,13 @@ export class World {
     p.swingAnim = 1;
     p.lastKind = kind;
     p.cooldown = PLAYER.SWING_CD;
-    this.emit('hit', { side, kind, x: b.x, y: b.y, z: b.z, power: shot.power });
+
+    const idx = idxOf(side);
+    const kmh = Math.hypot(shot.vx, shot.vy, shot.vz) * 3.6;
+    if (kmh > this.stats.maxSpeed[idx]) this.stats.maxSpeed[idx] = kmh;
+    if (kind === SHOT.SMASH) this.stats.smash[idx]++;
+
+    this.emit('hit', { side, kind, x: b.x, y: b.y, z: b.z, power: shot.power, speed: Math.round(kmh) });
     return true;
   }
 
@@ -325,10 +335,32 @@ export class World {
     const c = this.score[1];
     const win = (s, o) => (s >= RULES.TARGET_POINTS && s - o >= RULES.WIN_BY) || s >= RULES.HARD_CAP;
     if (win(a, c) || win(c, a)) {
-      this.winner = a > c ? 1 : -1;
-      this.phase = 'over';
-      this.emit('gameover', { winner: this.winner, score: [a, c] });
+      const gameWinner = a > c ? SIDE_L : SIDE_R;
+      this.games[idxOf(gameWinner)]++;
+      this.lastGameResult = { winner: gameWinner, score: [a, c], index: this.gameIndex };
+      this.emit('gameEnd', { winner: gameWinner, score: [a, c], games: this.games.slice(), index: this.gameIndex });
+
+      if (this.games[idxOf(gameWinner)] >= RULES.GAMES_TO_WIN) {
+        this.winner = gameWinner;
+        this.phase = 'over';
+        this.emit('gameover', { winner: this.winner, score: [a, c], games: this.games.slice() });
+      } else {
+        this.phase = 'break';
+        this.phaseTimer = RULES.BREAK_TIME;
+        this.server = gameWinner;
+      }
     }
+  }
+
+  startNextGame() {
+    this.gameIndex++;
+    this.score = [0, 0];
+    this.lastGameResult = null;
+    this.bodyReset = true;
+    this.phase = 'serve';
+    this.phaseTimer = 0;
+    this.resetPositions();
+    this.emit('gameStart', { index: this.gameIndex, server: this.server });
   }
 
   step(dt) {
@@ -349,6 +381,14 @@ export class World {
         this.phaseTimer = 0;
         this.resetPositions();
       }
+      return;
+    }
+
+    if (this.phase === 'break') {
+      this.phaseTimer -= dt;
+      for (const p of this.players) this.stepPlayer(p, dt);
+      if (this.ball.active) this.stepBall(dt);
+      if (this.phaseTimer <= 0) this.startNextGame();
       return;
     }
 
@@ -394,6 +434,12 @@ export class World {
         r2(p.swingAnim), r2(p.lungeT), p.lastKind || '',
       ]),
       s: [this.score[0], this.score[1]],
+      gm: [this.games[0], this.games[1]],
+      gi: this.gameIndex,
+      st: [
+        this.stats.smash[0], this.stats.smash[1],
+        Math.round(this.stats.maxSpeed[0]), Math.round(this.stats.maxSpeed[1]),
+      ],
       ph: this.phase,
       sv: this.server,
       lh: this.lastHitter || 0,
@@ -421,6 +467,12 @@ export class World {
     }
     this.score[0] = s.s[0];
     this.score[1] = s.s[1];
+    if (s.gm) { this.games[0] = s.gm[0]; this.games[1] = s.gm[1]; }
+    if (s.gi) this.gameIndex = s.gi;
+    if (s.st) {
+      this.stats.smash[0] = s.st[0]; this.stats.smash[1] = s.st[1];
+      this.stats.maxSpeed[0] = s.st[2]; this.stats.maxSpeed[1] = s.st[3];
+    }
     this.phase = s.ph;
     this.server = s.sv;
     this.lastHitter = s.lh || null;
